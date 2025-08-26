@@ -100,9 +100,21 @@
 <div class="section">
   <h2>Menu items</h2>
   <div class="hint">
-    Use existing CMS keys and labels to build the menu. Set a price for each item. Click “Add to menu” to include it, or “Remove from menu” to remove it.
+    Use this table to add or remove menu entries. Each row will automatically store its item, price, description, and image with the prefixes <b>menu.</b>, <b>price.</b>, <b>desc.</b>, and <b>image.</b> on the CMS keys.
   </div>
-  <div id="menuList" class="list"></div>
+  <button id="addMenuRow">Add Row</button>
+  <table style="width:100%; margin-top:10px;">
+    <thead>
+      <tr>
+        <th style="width:25%">Item</th>
+        <th style="width:15%">Price</th>
+        <th style="width:30%">Description</th>
+        <th style="width:20%">Image</th>
+        <th style="width:10%"></th>
+      </tr>
+    </thead>
+    <tbody id="menuRows"></tbody>
+  </table>
 </div>
   </div>
 
@@ -254,7 +266,204 @@ async function apiRemoveMenuItem(keySuffix) {
 
         rows.appendChild(row);
       });
+// Helper: read a file as base64
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
+// Adds a new editable row to the menu table
+function addMenuRow(data = {}) {
+  const tbody = document.getElementById('menuRows');
+  const tr = document.createElement('tr');
+
+  // Item name (suffix)
+  const itemTd = document.createElement('td');
+  const itemInput = document.createElement('input');
+  itemInput.type = 'text';
+  itemInput.placeholder = 'e.g. latte';
+  itemInput.value = data.item || '';
+  itemTd.appendChild(itemInput);
+  tr.appendChild(itemTd);
+
+  // Price
+  const priceTd = document.createElement('td');
+  const priceInput = document.createElement('input');
+  priceInput.type = 'number';
+  priceInput.min = '0';
+  priceInput.step = '0.01';
+  priceInput.placeholder = '0.00';
+  priceInput.value = data.price || '';
+  priceTd.appendChild(priceInput);
+  tr.appendChild(priceTd);
+
+  // Description
+  const descTd = document.createElement('td');
+  const descInput = document.createElement('input');
+  descInput.type = 'text';
+  descInput.placeholder = 'Description';
+  descInput.value = data.description || '';
+  descTd.appendChild(descInput);
+  tr.appendChild(descTd);
+
+  // Image (name + file)
+  const imgTd = document.createElement('td');
+  const imgNameInput = document.createElement('input');
+  imgNameInput.type = 'text';
+  imgNameInput.placeholder = 'image name (no prefix)';
+  imgNameInput.value = data.imageName || '';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  imgTd.appendChild(imgNameInput);
+  imgTd.appendChild(fileInput);
+  tr.appendChild(imgTd);
+
+  // Remove button
+  const actionTd = document.createElement('td');
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = 'Remove';
+  removeBtn.onclick = async () => {
+    try {
+      // Remove both the menu entry and associated price, description, and image keys
+      const suffix = itemInput.value.trim();
+      if (suffix) {
+        await apiRemoveMenuItem(suffix);
+      }
+      tbody.removeChild(tr);
+    } catch (e) {
+      showError(e.message || 'Remove failed');
+    }
+  };
+  actionTd.appendChild(removeBtn);
+  tr.appendChild(actionTd);
+
+  // Append the row
+  tbody.appendChild(tr);
+}
+
+// Event handler for adding new rows
+document.getElementById('addMenuRow').addEventListener('click', () => addMenuRow());
+
+// Override apiAddMenuItem to handle prefixes and description/image keys
+async function apiAddMenuItem(keySuffix, label, price, desc, imageName, imageBase64) {
+  showError('');
+  const anon = getAnon();
+  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  // Compose prefixed keys
+  const menuKey  = 'menu.'  + keySuffix;
+  const priceKey = 'price.' + keySuffix;
+  const descKey  = 'desc.'  + keySuffix;
+  const imageKey = 'image.' + keySuffix;
+
+  const payload = {
+    key: menuKey,
+    label,
+    price,
+    description: desc,
+    image_name: imageName,
+    image_data: imageBase64
+  };
+  const res = await fetch(`${getFnsUrl()}/cms-menu-add`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anon}`,
+      'content-type': 'application/json',
+      'x-cms-secret': WRITE_SECRET
+    },
+    body: JSON.stringify(payload)
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `Add failed (${res.status})`);
+  return out;
+}
+
+// Override apiRemoveMenuItem to handle prefix automatically
+async function apiRemoveMenuItem(keySuffix) {
+  showError('');
+  const anon = getAnon();
+  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  const menuKey = 'menu.' + keySuffix;
+  const res = await fetch(`${getFnsUrl()}/cms-menu-remove`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anon}`,
+      'content-type': 'application/json',
+      'x-cms-secret': WRITE_SECRET
+    },
+    body: JSON.stringify({ key: menuKey })
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `Remove failed (${res.status})`);
+  return out;
+}
+
+// Enhance renderMenu to populate the table with existing entries
+function renderMenu(map, menuItems) {
+  const tbody = document.getElementById('menuRows');
+  tbody.innerHTML = '';
+  const items = {};
+  // Convert keys like 'menu.latte' into suffixes
+  (menuItems || []).forEach(item => {
+    if (item && item.key && item.key.startsWith('menu.')) {
+      const suffix = item.key.slice('menu.'.length);
+      items[suffix] = {
+        item: suffix,
+        price: item.price || '',
+        description: item.description || '',
+        imageName: item.image_name || ''
+      };
+    }
+  });
+  Object.values(items).forEach(entry => addMenuRow(entry));
+}
+
+// Hook into loadAll to fetch and render the menu
+async function loadAll() {
+  try {
+    const data = await apiGetAll();
+    renderHours(data);
+    renderList(data);
+    try {
+      const menuItems = await apiGetMenuItems();
+      renderMenu(data, menuItems);
+    } catch (me) {
+      console.warn(me);
+    }
+  } catch (e) {
+    showError(e.message || 'Load failed');
+  }
+}
+
+// Finally, handle saving each row (e.g., when user leaves the row)
+document.getElementById('menuRows').addEventListener('focusout', async (e) => {
+  const tr = e.target.closest('tr');
+  if (!tr) return;
+  // Fetch values
+  const inputs = tr.querySelectorAll('input');
+  const suffix = inputs[0].value.trim();
+  const price  = inputs[1].value.trim();
+  const desc   = inputs[2].value.trim();
+  const imageName = inputs[3].value.trim();
+  const file = inputs[4].files[0];
+  let base64 = '';
+  if (file) {
+    base64 = await readFileAsBase64(file);
+  }
+  try {
+    // Use the generic value (map[suffix]) as the label
+    const label = suffix ? (window.cachedCmsData?.[suffix] || '') : '';
+    if (suffix) {
+      await apiAddMenuItem(suffix, label, price, desc, imageName, base64);
+    }
+  } catch (e) {
+    showError(e.message || 'Save failed');
+  }
+});
       // Friday split (Jumu’ah)
       const fri = document.createElement('div'); fri.className='hoursRow'; fri.dataset.day='fri'; fri.dataset.type='split';
       const friLab = document.createElement('label'); friLab.textContent = "Friday (Jumu\u2019ah)"; fri.appendChild(friLab);
