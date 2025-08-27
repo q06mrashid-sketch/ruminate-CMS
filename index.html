@@ -97,20 +97,24 @@
       <div id="list" class="list"></div>
     </div>
     <!-- Menu editor -->
+<!-- Menu editor -->
 <div class="section">
   <h2>Menu items</h2>
   <div class="hint">
-    Use this table to add or remove menu entries. Each row will automatically store its item, price, description, and image with the prefixes <b>menu.</b>, <b>price.</b>, <b>desc.</b>, and <b>image.</b> on the CMS keys.
+    Each menu entry stores its data under automatically prefixed keys:
+    <code>menu.&lt;suffix&gt;</code>, <code>price.&lt;suffix&gt;</code>, <code>desc.&lt;suffix&gt;</code>, and <code>image.&lt;suffix&gt;</code>.
   </div>
-  <button id="addMenuRow">Add Row</button>
-  <table style="width:100%; margin-top:10px;">
+  <button id="addMenuRow">Add Menu Row</button>
+  <table style="width: 100%; margin-top: 10px;">
     <thead>
       <tr>
-        <th style="width:25%">Item</th>
-        <th style="width:15%">Price</th>
-        <th style="width:30%">Description</th>
-        <th style="width:20%">Image</th>
-        <th style="width:10%"></th>
+        <th>Key Suffix</th>
+        <th>Item Name</th>
+        <th>Price</th>
+        <th>Description</th>
+        <th>Image Name / Upload</th>
+        <th>Save</th>
+        <th>Remove</th>
       </tr>
     </thead>
     <tbody id="menuRows"></tbody>
@@ -270,52 +274,62 @@ async function apiRemoveMenuItem(keySuffix) {
 function readFileAsBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onload = () => resolve(reader.result.split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
+
 // Adds a new editable row to the menu table
-function addMenuRow(data = {}) {
+function addMenuRow(entry = {}) {
   const tbody = document.getElementById('menuRows');
   const tr = document.createElement('tr');
 
-  // Item name (suffix)
-  const itemTd = document.createElement('td');
-  const itemInput = document.createElement('input');
-  itemInput.type = 'text';
-  itemInput.placeholder = 'e.g. latte';
-  itemInput.value = data.item || '';
-  itemTd.appendChild(itemInput);
-  tr.appendChild(itemTd);
 
-  // Price
+   const suffixTd = document.createElement('td');
+  const suffixInput = document.createElement('input');
+  suffixInput.type = 'text';
+  suffixInput.placeholder = 'e.g. latte';
+  suffixInput.value = entry.suffix || '';
+  suffixTd.appendChild(suffixInput);
+  tr.appendChild(suffixTd);
+
+  // Item display name
+  const nameTd = document.createElement('td');
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'e.g. Latte';
+  nameInput.value = entry.name || '';
+  nameTd.appendChild(nameInput);
+  tr.appendChild(nameTd);
+
+  // Price field
   const priceTd = document.createElement('td');
   const priceInput = document.createElement('input');
   priceInput.type = 'number';
   priceInput.min = '0';
   priceInput.step = '0.01';
   priceInput.placeholder = '0.00';
-  priceInput.value = data.price || '';
+  priceInput.value = entry.price || '';
   priceTd.appendChild(priceInput);
   tr.appendChild(priceTd);
 
-  // Description
+  // Description field
   const descTd = document.createElement('td');
   const descInput = document.createElement('input');
   descInput.type = 'text';
   descInput.placeholder = 'Description';
-  descInput.value = data.description || '';
+  descInput.value = entry.desc || '';
   descTd.appendChild(descInput);
   tr.appendChild(descTd);
 
-  // Image (name + file)
+  // Image name + file
   const imgTd = document.createElement('td');
   const imgNameInput = document.createElement('input');
   imgNameInput.type = 'text';
-  imgNameInput.placeholder = 'image name (no prefix)';
-  imgNameInput.value = data.imageName || '';
+  imgNameInput.placeholder = 'image name';
+  imgNameInput.value = entry.imageName || '';
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*';
@@ -323,57 +337,95 @@ function addMenuRow(data = {}) {
   imgTd.appendChild(fileInput);
   tr.appendChild(imgTd);
 
+  
+  // Save button
+  const saveTd = document.createElement('td');
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save';
+  saveBtn.onclick = async () => {
+    const suffix = suffixInput.value.trim();
+    const nameVal = nameInput.value.trim();
+    const priceVal = priceInput.value.trim();
+    const descVal = descInput.value.trim();
+    const imageNameVal = imgNameInput.value.trim();
+    let imageBase64 = '';
+
+    if (!suffix || !nameVal) {
+      alert('Key suffix and item name are required.');
+      return;
+    }
+    if (fileInput.files[0]) {
+      imageBase64 = await readFileAsBase64(fileInput.files[0]);
+    }
+    try {
+      await apiAddMenuItem(
+        suffix,
+        nameVal,
+        priceVal,
+        descVal,
+        imageNameVal,
+        imageBase64
+      );
+      alert('Menu entry saved!');
+      await loadAll(); // refresh to persist changes
+    } catch (e) {
+      showError(e.message || 'Save failed');
+    }
+  };
+  saveTd.appendChild(saveBtn);
+  tr.appendChild(saveTd);
+
   // Remove button
-  const actionTd = document.createElement('td');
+  const removeTd = document.createElement('td');
   const removeBtn = document.createElement('button');
   removeBtn.textContent = 'Remove';
   removeBtn.onclick = async () => {
+    const suffix = suffixInput.value.trim();
+    if (!suffix) {
+      tr.parentElement.removeChild(tr);
+      return;
+    }
     try {
-      // Remove both the menu entry and associated price, description, and image keys
-      const suffix = itemInput.value.trim();
-      if (suffix) {
-        await apiRemoveMenuItem(suffix);
-      }
-      tbody.removeChild(tr);
+      await apiRemoveMenuItem(suffix);
+      tr.parentElement.removeChild(tr);
+      await loadAll();
     } catch (e) {
       showError(e.message || 'Remove failed');
     }
   };
-  actionTd.appendChild(removeBtn);
-  tr.appendChild(actionTd);
+  removeTd.appendChild(removeBtn);
+  tr.appendChild(removeTd);
 
-  // Append the row
   tbody.appendChild(tr);
 }
 
 // Event handler for adding new rows
-document.getElementById('addMenuRow').addEventListener('click', () => addMenuRow());
+document.getElementById('addMenuRow').addEventListener('click', () => {
+  addMenuRow();
+});
 
 // Override apiAddMenuItem to handle prefixes and description/image keys
 async function apiAddMenuItem(keySuffix, label, price, desc, imageName, imageBase64) {
-  showError('');
   const anon = getAnon();
-  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
-  // Compose prefixed keys
+  if (!anon) throw new Error('Supabase ANON key not set.');
   const menuKey  = 'menu.'  + keySuffix;
   const priceKey = 'price.' + keySuffix;
   const descKey  = 'desc.'  + keySuffix;
   const imageKey = 'image.' + keySuffix;
-
   const payload = {
     key: menuKey,
-    label,
-    price,
+    label,        // the display name for the menu item
+    price: price, // store price in the price column of menu_items
     description: desc,
     image_name: imageName,
-    image_data: imageBase64
+    image_data: imageBase64,
   };
   const res = await fetch(`${getFnsUrl()}/cms-menu-add`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${anon}`,
       'content-type': 'application/json',
-      'x-cms-secret': WRITE_SECRET
+      'x-cms-secret': WRITE_SECRET,
     },
     body: JSON.stringify(payload)
   });
@@ -384,16 +436,15 @@ async function apiAddMenuItem(keySuffix, label, price, desc, imageName, imageBas
 
 // Override apiRemoveMenuItem to handle prefix automatically
 async function apiRemoveMenuItem(keySuffix) {
-  showError('');
   const anon = getAnon();
-  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  if (!anon) throw new Error('Supabase ANON key not set.');
   const menuKey = 'menu.' + keySuffix;
   const res = await fetch(`${getFnsUrl()}/cms-menu-remove`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${anon}`,
       'content-type': 'application/json',
-      'x-cms-secret': WRITE_SECRET
+      'x-cms-secret': WRITE_SECRET,
     },
     body: JSON.stringify({ key: menuKey })
   });
@@ -401,27 +452,27 @@ async function apiRemoveMenuItem(keySuffix) {
   if (!res.ok) throw new Error(out.error || `Remove failed (${res.status})`);
   return out;
 }
-
+      
 // Enhance renderMenu to populate the table with existing entries
 function renderMenu(map, menuItems) {
   const tbody = document.getElementById('menuRows');
   tbody.innerHTML = '';
   const items = {};
-  // Convert keys like 'menu.latte' into suffixes
   (menuItems || []).forEach(item => {
     if (item && item.key && item.key.startsWith('menu.')) {
       const suffix = item.key.slice('menu.'.length);
       items[suffix] = {
-        item: suffix,
+        suffix,
+        name: item.label || '',
         price: item.price || '',
-        description: item.description || '',
+        desc: item.description || '',
         imageName: item.image_name || ''
       };
     }
   });
   Object.values(items).forEach(entry => addMenuRow(entry));
 }
-
+      
 // Hook into loadAll to fetch and render the menu
 async function loadAll() {
   try {
@@ -486,20 +537,55 @@ document.getElementById('menuRows').addEventListener('focusout', async (e) => {
       rows.appendChild(fri);
     }
 
-    function renderList(map){
-      const list = $id('list'); list.innerHTML='';
-      const keys = Object.keys(map||{}).sort();
-      if(!keys.length){ list.innerHTML = '<div>No entries yet.</div>'; return; }
-      keys.forEach(k=>{
-        const row = document.createElement('div'); row.className='row';
-        const lab = document.createElement('label'); lab.textContent=k; row.appendChild(lab);
-        const inp = document.createElement('input'); inp.type='text'; inp.value=map[k]||''; row.appendChild(inp);
-        const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
-        saveBtn.onclick = async ()=>{ try{ await apiUpsert(k, inp.value); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
-        row.appendChild(saveBtn);
-        list.appendChild(row);
-      });
-    }
+    function renderList(map) {
+  const list = $id('list');
+  list.innerHTML = '';
+  const keys = Object.keys(map || {}).sort();
+  if (!keys.length) {
+    list.innerHTML = '<div>No entries yet.</div>';
+    return;
+  }
+  keys.forEach(k => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const lab = document.createElement('label');
+    lab.textContent = k;
+    row.appendChild(lab);
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = map[k] || '';
+    row.appendChild(inp);
+    // Save button
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.onclick = async () => {
+      try {
+        await apiUpsert(k, inp.value);
+        alert('Saved');
+      } catch (e) {
+        showError(e.message || 'Save failed');
+      }
+    };
+    row.appendChild(saveBtn);
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.onclick = async () => {
+      try {
+        // This will delete the key by setting its value to an empty string;
+        // adjust to your backend’s deletion mechanism if needed.
+        await apiUpsert(k, '');
+        alert('Removed');
+        await loadAll();
+      } catch (e) {
+        showError(e.message || 'Remove failed');
+      }
+    };
+    row.appendChild(removeBtn);
+    list.appendChild(row);
+  });
+}
+    
 function renderMenu(map, menuItems) {
   const list = $id('menuList');
   list.innerHTML = '';
