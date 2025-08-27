@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ruminate CMS Editor</title>
+  <style>
+    :root { --fg:#111; --muted:#666; --line:#bbb; --pad:10px; }
+    body { font-family: system-ui, Arial; margin: 2rem; line-height: 1.5; color: var(--fg); }
+    h1 { text-align: center; }
+    #editor { display: none; }
+    .row { display:flex; gap:10px; margin-bottom:10px; align-items:center; }
+    .row label { width:140px; font-weight:600; }
+    .row input[type="text"], .row input[type="password"] { flex:1; padding:8px; }
+    .row button { padding:8px 12px; }
+    .list { margin-top:18px; }
+    .hint { color:var(--muted); font-size:13px; margin-bottom:12px; }
+    .topbar { display:flex; gap:10px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
+    .topbar button { padding:6px 10px; }
+    .section { margin-top:22px; padding-top:6px; border-top:1px dashed var(--line); }
+    .section h2 { margin:6px 0 12px; font-size:18px; }
+    .hoursHeader { font-weight:700; color:#333; margin-bottom:6px; }
+    .hoursRow { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+    .hoursRow label { width:140px; font-weight:600; }
+    .hoursRow input { width:130px; padding:8px; }
+    .right { display:flex; gap:10px; justify-content:flex-end; }
+    #err { display:none; color:#b00020; margin:10px 0; }
+    /* Password gate */
+    #gate { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#fff; }
+    #gate .box { width:min(520px, 92vw); border:1px solid var(--line); padding:20px; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,0.07); }
+    #gate .box h2 { margin:0 0 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Password gate (no prompt, no blank screen) -->
+  <div id="gate">
+    <div class="box">
+      <h2>Enter page password</h2>
+      <div class="row">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" placeholder="••••••••••••" />
+      </div>
+      <div class="row">
+        <button id="enter">Enter</button>
+        <button id="remember">Remember this device</button>
+      </div>
+      <div class="hint">Tip: You can save your Supabase Anon key after login from the top bar.</div>
+    </div>
+  </div>
+
+  <div id="editor">
+    <h1>Ruminate CMS</h1>
+
+    <div class="topbar">
+      <button id="resetAuth">Reset page password</button>
+      <button id="setAnon">Set Supabase anon key</button>
+      <button id="setFnsUrl">Set Functions URL</button>
+    </div>
+
+    <div id="err"></div>
+
+    <div class="hint">
+      Keys used by the app: <b>special 1</b>, <b>special 2</b>, <b>rumi quote</b>.<br/>
+      Opening hours keys:
+      <code>hours.mon.open/close</code> … <code>hours.sun.open/close</code>.<br/>
+      Friday split hours:
+      <code>hours.fri.open1</code>, <code>hours.fri.close1</code>, <code>hours.fri.open2</code>, <code>hours.fri.close2</code>.
+    </div>
+
+    <!-- Opening hours editor -->
+    <div class="section">
+      <h2>Opening hours (Mon–Sun)</h2>
+      <div class="hoursHeader row">
+        <label>Day</label>
+        <input type="text" value="Open" disabled />
+        <input type="text" value="Close" disabled />
+        <span style="width:1px;"></span>
+      </div>
+
+      <div id="hoursRows"></div>
+
+      <div class="row right">
+        <button id="saveHoursAll">Save all hours</button>
+      </div>
+    </div>
+
+    <!-- Generic key/value editor -->
+    <div class="section">
+      <h2>Key / Value entries</h2>
+      <form id="addForm" class="row">
+        <input id="newKey" type="text" placeholder="key e.g. special 1" required />
+        <input id="newVal" type="text" placeholder="value text" required />
+        <button type="submit">Add / Update</button>
+      </form>
+
+      <div id="list" class="list"></div>
+    </div>
+    <!-- Menu editor -->
+<div class="section">
+  <h2>Menu items</h2>
+  <div class="hint">
+    Use existing CMS keys and labels to build the menu. Set a price for each item. Click “Add to menu” to include it, or “Remove from menu” to remove it.
+  </div>
+  <div id="menuList" class="list"></div>
+</div>
+  </div>
+
+  <script>
+    // ---- Config (can override via localStorage) ----
+    const DEFAULT_FUNCTIONS_URL = "https://eamewialuovzguldcdcf.functions.supabase.co";
+    const WRITE_SECRET = "Misterbignose12!";
+    const VIEW_PASSWORD = "Misterbignose12!";
+
+    function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
+    function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
+    function getAnon(){ return localStorage.getItem('cmsAnon') || ''; }
+    function setAnon(k){ if(k) localStorage.setItem('cmsAnon', k); }
+    function clearAuth(){ localStorage.removeItem('ruminateAuth'); }
+
+    const DAYS_SIMPLE = [
+      { key: 'mon', label: 'Monday' },
+      { key: 'tue', label: 'Tuesday' },
+      { key: 'wed', label: 'Wednesday' },
+      { key: 'thu', label: 'Thursday' },
+      { key: 'sat', label: 'Saturday' },
+      { key: 'sun', label: 'Sunday' },
+    ];
+
+    function $id(id){ return document.getElementById(id); }
+    function showError(msg){ const e=$id('err'); e.textContent=String(msg||''); e.style.display = msg ? 'block' : 'none'; }
+
+    // ---- Gate handling ----
+    function openEditor(){
+      $id('gate').style.display='none';
+      $id('editor').style.display='block';
+    }
+    function checkPassword(pw, remember){
+      if(pw === VIEW_PASSWORD){
+        if(remember) localStorage.setItem('ruminateAuth','true');
+        openEditor();
+        return true;
+      }
+      showError('Incorrect page password.');
+      return false;
+    }
+    // Persisted bypass
+    if(localStorage.getItem('ruminateAuth')==='true'){ openEditor(); }
+
+    // ---- API ----
+    async function apiGetAll(){
+      showError('');
+      const anon = getAnon();
+      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+      const res = await fetch(`${getFnsUrl()}/cms-get`, { headers:{ 'Authorization': `Bearer ${anon}` }});
+      if(!res.ok) throw new Error(`GET failed: ${res.status}`);
+      return res.json();
+    }
+    async function apiUpsert(key, value){
+      showError('');
+      const anon = getAnon();
+      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+      const res = await fetch(`${getFnsUrl()}/cms-set`, {
+        method:'POST',
+        headers:{
+          'Authorization': `Bearer ${anon}`,
+          'content-type':'application/json',
+          'x-cms-secret': WRITE_SECRET
+        },
+        body: JSON.stringify({ key, value })
+      });
+      const out = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(out.error || `Save failed (${res.status})`);
+      return out;
+    }
+// ---- Menu API ----
+async function apiGetMenuItems() {
+  showError('');
+  const anon = getAnon();
+  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  const res = await fetch(`${getFnsUrl()}/cms-menu-get`, {
+    headers: { 'Authorization': `Bearer ${anon}` }
+  });
+  if (!res.ok) throw new Error(`Menu GET failed: ${res.status}`);
+  return res.json(); // returns array of { key, label, price }
+}
+
+// ---- Menu API ----
+// Existing definitions assumed; update them as follows:
+
+async function apiAddMenuItem(keySuffix, label, price) {
+  showError('');
+  const anon = getAnon();
+  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  // Prefix the keys automatically
+  const menuKey  = 'menu.'  + keySuffix;
+  const priceKey = 'price.' + keySuffix;
+  const res = await fetch(`${getFnsUrl()}/cms-menu-add`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anon}`,
+      'content-type': 'application/json',
+      'x-cms-secret': WRITE_SECRET,
+    },
+    body: JSON.stringify({ key: menuKey, label, price }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `Add failed (${res.status})`);
+  return out;
+}
+
+async function apiRemoveMenuItem(keySuffix) {
+  showError('');
+  const anon = getAnon();
+  if (!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+  // Prefix the key when removing
+  const menuKey = 'menu.' + keySuffix;
+  const res = await fetch(`${getFnsUrl()}/cms-menu-remove`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${anon}`,
+      'content-type': 'application/json',
+      'x-cms-secret': WRITE_SECRET,
+    },
+    body: JSON.stringify({ key: menuKey }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `Remove failed (${res.status})`);
+  return out;
+}
+    // ---- Hours UI ----
+    function hoursKey(dayKey, kind){ return `hours.${dayKey}.${kind}`; }
+
+    function renderHours(map){
+      const rows = $id('hoursRows'); rows.innerHTML='';
+      // Simple days
+      DAYS_SIMPLE.forEach(({key,label})=>{
+        const openVal = map[hoursKey(key,'open')] || '';
+        const closeVal = map[hoursKey(key,'close')] || '';
+        const row = document.createElement('div'); row.className='hoursRow'; row.dataset.day=key; row.dataset.type='simple';
+
+        const lab = document.createElement('label'); lab.textContent = label; row.appendChild(lab);
+
+        const openInp = document.createElement('input'); openInp.type='text'; openInp.placeholder='e.g. 08:00'; openInp.value=openVal; openInp.dataset.kind='open'; row.appendChild(openInp);
+        const closeInp = document.createElement('input'); closeInp.type='text'; closeInp.placeholder='e.g. 17:00'; closeInp.value=closeVal; closeInp.dataset.kind='close'; row.appendChild(closeInp);
+
+        const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
+        saveBtn.onclick = async ()=>{ try{
+          await apiUpsert(hoursKey(key,'open'), openInp.value);
+          await apiUpsert(hoursKey(key,'close'), closeInp.value);
+          alert(`${label} saved`);
+        }catch(e){ showError(e.message||'Save failed'); } };
+        row.appendChild(saveBtn);
+
+        rows.appendChild(row);
+      });
+
+      // Friday split (Jumu’ah)
+      const fri = document.createElement('div'); fri.className='hoursRow'; fri.dataset.day='fri'; fri.dataset.type='split';
+      const friLab = document.createElement('label'); friLab.textContent = "Friday (Jumu\u2019ah)"; fri.appendChild(friLab);
+
+      const fOpen1 = document.createElement('input'); fOpen1.type='text'; fOpen1.placeholder='Open 1 (e.g. 08:00)'; fOpen1.value = map[hoursKey('fri','open1')] || ''; fOpen1.dataset.kind='open1'; fri.appendChild(fOpen1);
+      const fClose1 = document.createElement('input'); fClose1.type='text'; fClose1.placeholder='Close 1 (e.g. 12:00)'; fClose1.value = map[hoursKey('fri','close1')] || ''; fClose1.dataset.kind='close1'; fri.appendChild(fClose1);
+      const fOpen2 = document.createElement('input'); fOpen2.type='text'; fOpen2.placeholder='Open 2 (e.g. 14:00)'; fOpen2.value = map[hoursKey('fri','open2')] || ''; fOpen2.dataset.kind='open2'; fri.appendChild(fOpen2);
+      const fClose2 = document.createElement('input'); fClose2.type='text'; fClose2.placeholder='Close 2 (e.g. 18:00)'; fClose2.value = map[hoursKey('fri','close2')] || ''; fClose2.dataset.kind='close2'; fri.appendChild(fClose2);
+
+      const friSave = document.createElement('button'); friSave.textContent='Save';
+      friSave.onclick = async ()=>{ try{
+        await apiUpsert(hoursKey('fri','open1'), fOpen1.value);
+        await apiUpsert(hoursKey('fri','close1'), fClose1.value);
+        await apiUpsert(hoursKey('fri','open2'), fOpen2.value);
+        await apiUpsert(hoursKey('fri','close2'), fClose2.value);
+        alert('Friday saved');
+      }catch(e){ showError(e.message||'Save failed'); } };
+      fri.appendChild(friSave);
+
+      rows.appendChild(fri);
+    }
+
+    function renderList(map){
+      const list = $id('list'); list.innerHTML='';
+      const keys = Object.keys(map||{}).sort();
+      if(!keys.length){ list.innerHTML = '<div>No entries yet.</div>'; return; }
+      keys.forEach(k=>{
+        const row = document.createElement('div'); row.className='row';
+        const lab = document.createElement('label'); lab.textContent=k; row.appendChild(lab);
+        const inp = document.createElement('input'); inp.type='text'; inp.value=map[k]||''; row.appendChild(inp);
+        const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
+        saveBtn.onclick = async ()=>{ try{ await apiUpsert(k, inp.value); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
+        row.appendChild(saveBtn);
+        list.appendChild(row);
+      });
+    }
+function renderMenu(map, menuItems) {
+  const list = $id('menuList');
+  list.innerHTML = '';
+  const keys = Object.keys(map || {}).sort();
+  const menuMap = {};
+  // Convert 'menu.<suffix>' from Supabase into its suffix for matching
+  (menuItems || []).forEach((item) => {
+    if (item && item.key && item.key.startsWith('menu.')) {
+      const suffix = item.key.slice('menu.'.length);
+      menuMap[suffix] = item;
+    }
+  });
+  if (!keys.length) {
+    list.innerHTML = '<div>No entries yet.</div>';
+    return;
+  }
+  keys.forEach((k) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    // Display the original key (suffix)
+    const lab = document.createElement('label');
+    lab.textContent = k;
+    row.appendChild(lab);
+    // Read-only label value
+    const valInp = document.createElement('input');
+    valInp.type = 'text';
+    valInp.value = map[k] || '';
+    valInp.disabled = true;
+    row.appendChild(valInp);
+    // Price input field
+    const priceInp = document.createElement('input');
+    priceInp.type = 'number';
+    priceInp.min = '0';
+    priceInp.step = '0.01';
+    priceInp.placeholder = 'Price';
+    priceInp.style.width = '80px';
+    if (menuMap[k]) priceInp.value = menuMap[k].price || '';
+    row.appendChild(priceInp);
+    // Add/Remove button
+    const btn = document.createElement('button');
+    if (menuMap[k]) {
+      btn.textContent = 'Remove from menu';
+      btn.onclick = async () => {
+        try {
+          await apiRemoveMenuItem(k);
+          await loadAll();
+        } catch (e) {
+          showError(e.message || 'Remove failed');
+        }
+      };
+    } else {
+      btn.textContent = 'Add to menu';
+      btn.onclick = async () => {
+        const priceVal = priceInp.value;
+        if (priceVal === '') {
+          alert('Please enter a price');
+          return;
+        }
+        try {
+          await apiAddMenuItem(k, map[k], priceVal);
+          await loadAll();
+        } catch (e) {
+          showError(e.message || 'Add failed');
+        }
+      };
+    }
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+    async function loadAll() {
+  try {
+    const data = await apiGetAll();
+    renderHours(data);
+    renderList(data);
+    try {
+      // load menu items after CMS data
+      const menuItems = await apiGetMenuItems();
+      renderMenu(data, menuItems);
+    } catch (e) {
+      // If menu endpoints are unavailable, ignore silently
+      console.warn(e);
+    }
+  } catch (e) {
+    showError(e.message || 'Load failed');
+  }
+}
+
+    // ---- Events ----
+    $id('enter').addEventListener('click', ()=>{
+      const ok = checkPassword($id('pw').value, false);
+      if(ok && !getAnon()) alert('Click “Set Supabase anon key” (top bar) to enable saving.');
+      if(ok) loadAll();
+    });
+    $id('remember').addEventListener('click', ()=>{
+      const ok = checkPassword($id('pw').value, true);
+      if(ok && !getAnon()) alert('Click “Set Supabase anon key” (top bar) to enable saving.');
+      if(ok) loadAll();
+    });
+
+    $id('resetAuth').addEventListener('click', ()=>{ clearAuth(); alert('Page password reset. Reload to re-enter.'); location.reload(); });
+    $id('setAnon').addEventListener('click', ()=>{
+      const next = prompt('Paste your Supabase ANON key:', getAnon()||'');
+      if(next){ setAnon(next); alert('Anon key saved.'); }
+    });
+    $id('setFnsUrl').addEventListener('click', ()=>{
+      const next = prompt('Supabase Functions URL:', getFnsUrl());
+      if(next){ setFnsUrl(next); alert('Functions URL saved.'); }
+    });
+
+    $id('saveHoursAll').addEventListener('click', async ()=>{
+      try{
+        const rows = document.querySelectorAll('#hoursRows .hoursRow');
+        for(const row of rows){
+          const day = row.dataset.day;
+          if(row.dataset.type==='simple'){
+            const openVal = row.querySelector('input[data-kind="open"]').value;
+            const closeVal = row.querySelector('input[data-kind="close"]').value;
+            await apiUpsert(hoursKey(day,'open'), openVal);
+            await apiUpsert(hoursKey(day,'close'), closeVal);
+          }else if(row.dataset.type==='split' && day==='fri'){
+            const open1 = row.querySelector('input[data-kind="open1"]').value;
+            const close1 = row.querySelector('input[data-kind="close1"]').value;
+            const open2 = row.querySelector('input[data-kind="open2"]').value;
+            const close2 = row.querySelector('input[data-kind="close2"]').value;
+            await apiUpsert(hoursKey('fri','open1'), open1);
+            await apiUpsert(hoursKey('fri','close1'), close1);
+            await apiUpsert(hoursKey('fri','open2'), open2);
+            await apiUpsert(hoursKey('fri','close2'), close2);
+          }
+        }
+        alert('All hours saved');
+      }catch(e){ showError(e.message||'Save failed'); }
+    });
+
+    document.getElementById('addForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const key = (document.getElementById('newKey').value||'').trim();
+      const val = document.getElementById('newVal').value||'';
+      if(!key) return;
+      try{
+        await apiUpsert(key, val);
+        document.getElementById('newKey').value='';
+        document.getElementById('newVal').value='';
+        await loadAll();
+      }catch(e){ showError(e.message||'Save failed'); }
+    });
+
+    // If remembered auth, load immediately
+    if(localStorage.getItem('ruminateAuth')==='true'){ loadAll(); }
+  </script>
+</body>
+</html>
