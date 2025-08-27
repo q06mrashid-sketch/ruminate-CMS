@@ -104,11 +104,18 @@
     <div class="section">
       <h2>Menu items</h2>
       <div class="hint">
-        Keys written on save: <code>menu.&lt;category&gt;.&lt;suffix&gt;</code>,
+        Keys written on save:
+        <code>menu.&lt;category&gt;.&lt;suffix&gt;</code>,
         <code>price.&lt;category&gt;.&lt;suffix&gt;</code>,
         <code>desc.&lt;category&gt;.&lt;suffix&gt;</code>,
         <code>image.&lt;category&gt;.&lt;suffix&gt;</code> (base64),
-        <code>image.&lt;category&gt;.&lt;suffix&gt;.name</code> (image name). Category is <code>coffee</code> or <code>not-coffee</code>.
+        <code>image.&lt;category&gt;.&lt;suffix&gt;.name</code> (image name).<br/>
+        Categories: <code>coffee</code>, <code>not-coffee</code>, <code>pif</code>, <code>specials</code>.<br/>
+        Eligibility flags written on save:
+        <code>alt.&lt;category&gt;.&lt;suffix&gt;</code>,
+        <code>extra.&lt;category&gt;.&lt;suffix&gt;</code>,
+        <code>syrups-on.&lt;category&gt;.&lt;suffix&gt;</code> (and <code>syrup-on.*</code> for compat),
+        <code>coffee-on.&lt;category&gt;.&lt;suffix&gt;</code>.
       </div>
       <button id="addMenuRow">Add Menu Row</button>
       <table style="margin-top:10px">
@@ -119,6 +126,7 @@
             <th>Price</th>
             <th>Description</th>
             <th>Category</th>
+            <th>Options</th>
             <th>Image Name / Upload</th>
             <th>Save</th>
             <th>Remove</th>
@@ -127,6 +135,31 @@
         <tbody id="menuRows"></tbody>
       </table>
     </div>
+
+    <!-- Coffee blends -->
+    <div class="section">
+      <h2>Coffee blends</h2>
+      <div class="hint">Add blends as <code>coffee.&lt;suffix&gt;</code> → label</div>
+      <form id="addCoffeeForm" class="row">
+        <input id="coffeeSuffix" type="text" placeholder="suffix e.g. single-origin" required />
+        <input id="coffeeLabel" type="text" placeholder="label e.g. Single Origin" required />
+        <button type="submit">Add / Update Blend</button>
+      </form>
+      <div id="coffeeRows" class="list"></div>
+    </div>
+
+    <!-- Syrups -->
+    <div class="section">
+      <h2>Syrups</h2>
+      <div class="hint">Add syrups as <code>syrups.&lt;suffix&gt;</code> → label</div>
+      <form id="addSyrupForm" class="row">
+        <input id="syrupSuffix" type="text" placeholder="suffix e.g. vanilla" required />
+        <input id="syrupLabel" type="text" placeholder="label e.g. Vanilla" required />
+        <button type="submit">Add / Update Syrup</button>
+      </form>
+      <div id="syrupsRows" class="list"></div>
+    </div>
+
   </div>
 
   <script>
@@ -275,6 +308,7 @@
       });
     }
 
+    // Creates a new row with inputs + four option checkboxes
     function addMenuRow(data = {}) {
       const tbody = document.getElementById('menuRows');
       if (!tbody) return;
@@ -318,20 +352,51 @@
       descTd.appendChild(descInput);
       tr.appendChild(descTd);
 
-      // category radios
+      // category radios (coffee / not-coffee / pif / specials)
       const catTd = document.createElement('td');
       const groupName = `cat-${Date.now()}-${Math.random()}`;
-      const catCoffee = document.createElement('input'); catCoffee.type='radio'; catCoffee.name=groupName; catCoffee.value='coffee';
-      const lblCoffee = document.createElement('label'); lblCoffee.textContent='Coffee'; lblCoffee.style.marginRight='8px';
-      const catNotCoffee = document.createElement('input'); catNotCoffee.type='radio'; catNotCoffee.name=groupName; catNotCoffee.value='not-coffee';
-      const lblNotCoffee = document.createElement('label'); lblNotCoffee.textContent='Not Coffee';
+      function mkRadio(val, labelText) {
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = groupName;
+        input.value = val;
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.style.marginRight = '8px';
+        return [input, label];
+      }
+      const [catCoffee, lblCoffee]       = mkRadio('coffee', 'Coffee');
+      const [catNotCoffee, lblNotCoffee] = mkRadio('not-coffee', 'Not Coffee');
+      const [catPif, lblPif]             = mkRadio('pif', 'Pay it forward');
+      const [catSpecials, lblSpecials]   = mkRadio('specials', 'Specials');
 
-      if (data.category === 'coffee') catCoffee.checked = true;
-      if (data.category === 'not-coffee') catNotCoffee.checked = true;
+      if (data.category === 'coffee')      catCoffee.checked = true;
+      if (data.category === 'not-coffee')  catNotCoffee.checked = true;
+      if (data.category === 'pif')         catPif.checked = true;
+      if (data.category === 'specials')    catSpecials.checked = true;
 
-      catTd.appendChild(catCoffee); catTd.appendChild(lblCoffee);
-      catTd.appendChild(catNotCoffee); catTd.appendChild(lblNotCoffee);
+      [catCoffee, lblCoffee, catNotCoffee, lblNotCoffee, catPif, lblPif, catSpecials, lblSpecials]
+        .forEach(el => catTd.appendChild(el));
       tr.appendChild(catTd);
+
+      // Options checkboxes (Alt / Syrups / Extra / Coffee blend)
+      const optsTd = document.createElement('td');
+      function mkCheck(id, labelText, checked=false) {
+        const wrap = document.createElement('div');
+        wrap.style.display = 'flex';
+        wrap.style.alignItems = 'center';
+        wrap.style.gap = '6px';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = id; cb.checked = !!checked;
+        const lb = document.createElement('label'); lb.textContent = labelText;
+        wrap.appendChild(cb); wrap.appendChild(lb);
+        return { wrap, cb };
+      }
+      const cAlt     = mkCheck('opt-alt',   'Alt milks',   !!data.optAlt);
+      const cSyrups  = mkCheck('opt-syrup', 'Syrups',      !!data.optSyrups);
+      const cExtra   = mkCheck('opt-extra', 'Extra shot',  !!data.optExtra);
+      const cCoffee  = mkCheck('opt-cof',   'Coffee blend',!!data.optCoffee);
+      [cAlt.wrap, cSyrups.wrap, cExtra.wrap, cCoffee.wrap].forEach(x => optsTd.appendChild(x));
+      tr.appendChild(optsTd);
 
       // image name + upload
       const imgTd = document.createElement('td');
@@ -348,19 +413,33 @@
         const nameVal = (nameInput.value || '').trim();
         const priceVal = (priceInput.value || '').trim();
         const descVal = (descInput.value || '').trim();
-        const cat = catCoffee.checked ? 'coffee' : (catNotCoffee.checked ? 'not-coffee' : '');
+        const categoryVal =
+          catCoffee.checked    ? 'coffee' :
+          catNotCoffee.checked ? 'not-coffee' :
+          catPif.checked       ? 'pif' :
+          catSpecials.checked  ? 'specials' :
+          '';
         const imageNameVal = (imgNameInput.value || '').trim();
         let base64 = '';
 
-        if (!suffix || !nameVal || !cat) { alert('Suffix, item name, and category are required.'); return; }
+        if (!suffix || !nameVal || !categoryVal) { alert('Suffix, item name, and category are required.'); return; }
         if (fileInput.files && fileInput.files[0]) base64 = await readFileAsBase64(fileInput.files[0]);
 
         try {
-          await apiUpsert(`menu.${cat}.${suffix}`, nameVal);
-          await apiUpsert(`price.${cat}.${suffix}`, priceVal);
-          await apiUpsert(`desc.${cat}.${suffix}`, descVal);
-          if (base64) await apiUpsert(`image.${cat}.${suffix}`, base64);
-          if (imageNameVal) await apiUpsert(`image.${cat}.${suffix}.name`, imageNameVal);
+          // Standard fields
+          await apiUpsert(`menu.${categoryVal}.${suffix}`, nameVal);
+          await apiUpsert(`price.${categoryVal}.${suffix}`, priceVal);
+          await apiUpsert(`desc.${categoryVal}.${suffix}`, descVal);
+          if (base64) await apiUpsert(`image.${categoryVal}.${suffix}`, base64);
+          if (imageNameVal) await apiUpsert(`image.${categoryVal}.${suffix}.name`, imageNameVal);
+
+          // Eligibility flags
+          await apiUpsert(`alt.${categoryVal}.${suffix}`,        cAlt.cb.checked ? '1' : '');
+          await apiUpsert(`extra.${categoryVal}.${suffix}`,      cExtra.cb.checked ? '1' : '');
+          await apiUpsert(`syrups-on.${categoryVal}.${suffix}`,  cSyrups.cb.checked ? '1' : '');
+          await apiUpsert(`syrup-on.${categoryVal}.${suffix}`,   cSyrups.cb.checked ? '1' : ''); // optional compat
+          await apiUpsert(`coffee-on.${categoryVal}.${suffix}`,  cCoffee.cb.checked ? '1' : '');
+
           alert('Menu entry saved.');
           await loadAll();
         } catch (e) { showError(e.message || 'Save failed'); }
@@ -368,19 +447,24 @@
       saveTd.appendChild(saveBtn);
       tr.appendChild(saveTd);
 
-      // Remove (clear both categories)
+      // Remove (clear all categories + flags)
       const removeTd = document.createElement('td');
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
       removeBtn.onclick = async () => {
         const suffix = (suffixInput.value || '').trim();
         if (!suffix) { tr.parentElement.removeChild(tr); return; }
         try {
-          for (const cat of ['coffee','not-coffee']) {
+          for (const cat of ['coffee','not-coffee','pif','specials']) {
             await apiUpsert(`menu.${cat}.${suffix}`, '');
             await apiUpsert(`price.${cat}.${suffix}`, '');
             await apiUpsert(`desc.${cat}.${suffix}`, '');
             await apiUpsert(`image.${cat}.${suffix}`, '');
             await apiUpsert(`image.${cat}.${suffix}.name`, '');
+            await apiUpsert(`alt.${cat}.${suffix}`, '');
+            await apiUpsert(`extra.${cat}.${suffix}`, '');
+            await apiUpsert(`syrups-on.${cat}.${suffix}`, '');
+            await apiUpsert(`syrup-on.${cat}.${suffix}`, '');
+            await apiUpsert(`coffee-on.${cat}.${suffix}`, '');
           }
           tr.parentElement.removeChild(tr);
           await loadAll();
@@ -417,10 +501,84 @@
         item.desc = map[`desc.${category}.${suffix}`] || '';
         item.imageName = map[`image.${category}.${suffix}.name`] || '';
 
+        // eligibility flags
+        item.optAlt    = !!map[`alt.${category}.${suffix}`];
+        item.optExtra  = !!map[`extra.${category}.${suffix}`];
+        item.optSyrups = !!(map[`syrups-on.${category}.${suffix}`] || map[`syrup-on.${category}.${suffix}`]);
+        item.optCoffee = !!map[`coffee-on.${category}.${suffix}`];
+
         items[suffix] = item;
       });
 
       Object.values(items).forEach(entry => addMenuRow(entry));
+    }
+
+    // ---- Coffee & Syrups tables ----
+    function renderPrefixTable(map, prefix, containerId) {
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      box.innerHTML = '';
+
+      const keys = Object.keys(map || {}).filter(k => k.startsWith(prefix + '.')).sort();
+      if (!keys.length) { box.innerHTML = '<div>No entries yet.</div>'; return; }
+
+      keys.forEach(k => {
+        const row = document.createElement('div'); row.className = 'row';
+        const lab = document.createElement('label'); lab.textContent = k; row.appendChild(lab);
+        const inp = document.createElement('input'); inp.type = 'text'; inp.value = map[k] || ''; row.appendChild(inp);
+
+        const saveBtn = document.createElement('button'); saveBtn.textContent = 'Save';
+        saveBtn.onclick = async () => { try { await apiUpsert(k, inp.value); alert('Saved'); } catch(e){ showError(e.message || 'Save failed'); } };
+        row.appendChild(saveBtn);
+
+        const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
+        rmBtn.onclick = async () => { try { await apiUpsert(k, ''); alert('Removed'); await loadAll(); } catch(e){ showError(e.message || 'Remove failed'); } };
+        row.appendChild(rmBtn);
+
+        box.appendChild(row);
+      });
+    }
+
+    function wireAddForms(){
+      const coffeeForm = document.getElementById('addCoffeeForm');
+      if (coffeeForm && !coffeeForm.dataset.bound) {
+        coffeeForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const suf = (document.getElementById('coffeeSuffix').value || '').trim();
+          const lab = (document.getElementById('coffeeLabel').value || '').trim();
+          if (!suf || !lab) return;
+          try {
+            await apiUpsert(`coffee.${suf}`, lab);
+            document.getElementById('coffeeSuffix').value='';
+            document.getElementById('coffeeLabel').value='';
+            await loadAll();
+          } catch(e){ showError(e.message || 'Save failed'); }
+        });
+        coffeeForm.dataset.bound = '1';
+      }
+
+      const syrupForm = document.getElementById('addSyrupForm');
+      if (syrupForm && !syrupForm.dataset.bound) {
+        syrupForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const suf = (document.getElementById('syrupSuffix').value || '').trim();
+          const lab = (document.getElementById('syrupLabel').value || '').trim();
+          if (!suf || !lab) return;
+          try {
+            await apiUpsert(`syrups.${suf}`, lab);
+            document.getElementById('syrupSuffix').value='';
+            document.getElementById('syrupLabel').value='';
+            await loadAll();
+          } catch(e){ showError(e.message || 'Save failed'); }
+        });
+        syrupForm.dataset.bound = '1';
+      }
+    }
+
+    function renderCoffeeAndSyrups(map){
+      renderPrefixTable(map, 'coffee', 'coffeeRows');
+      renderPrefixTable(map, 'syrups', 'syrupsRows');
+      wireAddForms();
     }
 
     // ---- Page load orchestration ----
@@ -430,6 +588,7 @@
         renderHours(data);
         renderList(data);
         renderMenu(data);
+        renderCoffeeAndSyrups(data);
       }catch(e){ showError(e.message||'Load failed'); }
     }
 
