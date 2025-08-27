@@ -96,13 +96,30 @@
 
       <div id="list" class="list"></div>
     </div>
-    <!-- Menu editor -->
+   <!-- Menu items -->
 <div class="section">
   <h2>Menu items</h2>
   <div class="hint">
-    Use existing CMS keys and labels to build the menu. Set a price for each item. Click “Add to menu” to include it, or “Remove from menu” to remove it.
+    Each menu entry uses prefixed CMS keys: <code>menu.&lt;suffix&gt;</code>, <code>price.&lt;suffix&gt;</code>,
+    <code>desc.&lt;suffix&gt;</code>, <code>image.&lt;suffix&gt;</code>, and a category key of either
+    <code>coffee</code> or <code>not-coffee</code>. Use one row per item.
   </div>
-  <div id="menuList" class="list"></div>
+  <button id="addMenuRow">Add Menu Row</button>
+  <table style="width: 100%; margin-top: 10px;">
+    <thead>
+      <tr>
+        <th>Key Suffix</th>
+        <th>Item Name</th>
+        <th>Price</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Image Name / Upload</th>
+        <th>Save</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody id="menuRows"></tbody>
+  </table>
 </div>
   </div>
 
@@ -441,6 +458,239 @@ function renderMenu(map, menuItems) {
 
     // If remembered auth, load immediately
     if(localStorage.getItem('ruminateAuth')==='true'){ loadAll(); }
+    <!-- ==== MENU: APPENDS ONLY (do not alter existing code) ==== -->
+<script>
+/** Converts a file to base64 (content only, no data: prefix) */
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Build one menu row (suffix, name, price, desc, category radios, image name/upload, Save/Remove) */
+function addMenuRow(data = {}) {
+  const tbody = document.getElementById('menuRows');
+  if (!tbody) return; // table not present? bail gracefully
+  const tr = document.createElement('tr');
+
+  // --- Suffix ---
+  const suffixTd = document.createElement('td');
+  const suffixInput = document.createElement('input');
+  suffixInput.type = 'text';
+  suffixInput.placeholder = 'e.g. latte';
+  suffixInput.value = data.suffix || '';
+  suffixTd.appendChild(suffixInput);
+  tr.appendChild(suffixTd);
+
+  // --- Item display name ---
+  const nameTd = document.createElement('td');
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'e.g. Latte';
+  nameInput.value = data.name || '';
+  nameTd.appendChild(nameInput);
+  tr.appendChild(nameTd);
+
+  // --- Price ---
+  const priceTd = document.createElement('td');
+  const priceInput = document.createElement('input');
+  priceInput.type = 'number';
+  priceInput.min = '0';
+  priceInput.step = '0.01';
+  priceInput.placeholder = '0.00';
+  priceInput.value = data.price || '';
+  priceTd.appendChild(priceInput);
+  tr.appendChild(priceTd);
+
+  // --- Description ---
+  const descTd = document.createElement('td');
+  const descInput = document.createElement('input');
+  descInput.type = 'text';
+  descInput.placeholder = 'Description';
+  descInput.value = data.desc || '';
+  descTd.appendChild(descInput);
+  tr.appendChild(descTd);
+
+  // --- Category radios (coffee / not-coffee) ---
+  const catTd = document.createElement('td');
+  const groupName = `cat-${Date.now()}-${Math.random()}`;
+
+  const catCoffee = document.createElement('input');
+  catCoffee.type = 'radio';
+  catCoffee.name = groupName;
+  catCoffee.value = 'coffee';
+
+  const lblCoffee = document.createElement('label');
+  lblCoffee.textContent = 'Coffee';
+  lblCoffee.style.marginRight = '8px';
+
+  const catNotCoffee = document.createElement('input');
+  catNotCoffee.type = 'radio';
+  catNotCoffee.name = groupName;
+  catNotCoffee.value = 'not-coffee';
+
+  const lblNotCoffee = document.createElement('label');
+  lblNotCoffee.textContent = 'Not Coffee';
+
+  if (data.category === 'coffee') catCoffee.checked = true;
+  if (data.category === 'not-coffee') catNotCoffee.checked = true;
+
+  catTd.appendChild(catCoffee);
+  catTd.appendChild(lblCoffee);
+  catTd.appendChild(catNotCoffee);
+  catTd.appendChild(lblNotCoffee);
+  tr.appendChild(catTd);
+
+  // --- Image name + file ---
+  const imgTd = document.createElement('td');
+  const imgNameInput = document.createElement('input');
+  imgNameInput.type = 'text';
+  imgNameInput.placeholder = 'image name';
+  imgNameInput.value = data.imageName || '';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  imgTd.appendChild(imgNameInput);
+  imgTd.appendChild(fileInput);
+  tr.appendChild(imgTd);
+
+  // --- Save ---
+  const saveTd = document.createElement('td');
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save';
+  saveBtn.onclick = async () => {
+    const suffix = (suffixInput.value || '').trim();
+    const nameVal = (nameInput.value || '').trim();
+    const priceVal = (priceInput.value || '').trim();
+    const descVal = (descInput.value || '').trim();
+    const categoryVal = catCoffee.checked ? 'coffee' : (catNotCoffee.checked ? 'not-coffee' : '');
+    const imageNameVal = (imgNameInput.value || '').trim();
+    let imageBase64 = '';
+
+    if (!suffix || !nameVal || !categoryVal) {
+      alert('Suffix, item name, and category are required.');
+      return;
+    }
+    if (fileInput.files && fileInput.files[0]) {
+      imageBase64 = await readFileAsBase64(fileInput.files[0]);
+    }
+
+    try {
+      // SECOND IDENTIFIER SCHEME — store under menu.<category>.<suffix>, etc.
+      const cat = categoryVal;  // 'coffee' or 'not-coffee'
+      await apiUpsert(`menu.${cat}.${suffix}`, nameVal);
+      await apiUpsert(`price.${cat}.${suffix}`, priceVal);
+      await apiUpsert(`desc.${cat}.${suffix}`, descVal);
+      await apiUpsert(`image.${cat}.${suffix}`, imageBase64 || '');
+
+      alert('Menu entry saved.');
+      await loadAll();
+    } catch (e) {
+      showError(e.message || 'Save failed');
+    }
+  };
+  saveTd.appendChild(saveBtn);
+  tr.appendChild(saveTd);
+
+  // --- Remove (clear ALL keys, both categories, for safety) ---
+  const removeTd = document.createElement('td');
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = 'Remove';
+  removeBtn.onclick = async () => {
+    const suffix = (suffixInput.value || '').trim();
+    if (!suffix) {
+      tr.parentElement.removeChild(tr);
+      return;
+    }
+    try {
+      // wipe both categories and all fields (menu/price/desc/image)
+      await apiUpsert(`menu.coffee.${suffix}`, '');
+      await apiUpsert(`price.coffee.${suffix}`, '');
+      await apiUpsert(`desc.coffee.${suffix}`, '');
+      await apiUpsert(`image.coffee.${suffix}`, '');
+
+      await apiUpsert(`menu.not-coffee.${suffix}`, '');
+      await apiUpsert(`price.not-coffee.${suffix}`, '');
+      await apiUpsert(`desc.not-coffee.${suffix}`, '');
+      await apiUpsert(`image.not-coffee.${suffix}`, '');
+
+      tr.parentElement.removeChild(tr);
+      await loadAll();
+    } catch (e) {
+      showError(e.message || 'Remove failed');
+    }
+  };
+  removeTd.appendChild(removeBtn);
+  tr.appendChild(removeTd);
+
+  tbody.appendChild(tr);
+}
+
+// Button: add new blank menu row
+const _btnAddMenuRow = document.getElementById('addMenuRow');
+if (_btnAddMenuRow) {
+  _btnAddMenuRow.addEventListener('click', () => addMenuRow());
+}
+
+/** OVERRIDE renderMenu: read from CMS map (persist on refresh), ignore menuItems param */
+function renderMenu(map /*, menuItems */) {
+  const tbody = document.getElementById('menuRows');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  // Build a consolidated map: suffix -> { suffix, name, price, desc, imageName, category }
+  const itemsBySuffix = {};
+
+  // Look for menu.<category>.<suffix> keys, then pull the sibling price/desc/image keys
+  Object.keys(map || {}).forEach((key) => {
+    if (!key.startsWith('menu.')) return;
+    const parts = key.split('.');
+    if (parts.length < 3) return; // expect menu.<category>.<suffix...>
+    const category = parts[1]; // 'coffee' | 'not-coffee'
+    const suffix = parts.slice(2).join('.');
+
+    const item = itemsBySuffix[suffix] || { suffix };
+    item.category = category;
+    item.name = map[key] || '';
+
+    // pull siblings
+    item.price = map[`price.${category}.${suffix}`] || '';
+    item.desc = map[`desc.${category}.${suffix}`] || '';
+    // image is base64; we can't preview here, but we keep the name if it exists
+    item.imageName = map[`image.${category}.${suffix}`] ? (item.imageName || '') : (item.imageName || '');
+
+    itemsBySuffix[suffix] = item;
+  });
+
+  // Render rows
+  Object.values(itemsBySuffix).forEach(entry => addMenuRow(entry));
+}
+
+/** OVERRIDE renderList: add Remove button which clears the CMS key */
+function renderList(map){
+  const list = $id('list'); list.innerHTML='';
+  const keys = Object.keys(map||{}).sort();
+  if(!keys.length){ list.innerHTML = '<div>No entries yet.</div>'; return; }
+  keys.forEach(k=>{
+    const row = document.createElement('div'); row.className='row';
+    const lab = document.createElement('label'); lab.textContent=k; row.appendChild(lab);
+    const inp = document.createElement('input'); inp.type='text'; inp.value=map[k]||''; row.appendChild(inp);
+
+    const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
+    saveBtn.onclick = async ()=>{ try{ await apiUpsert(k, inp.value); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
+    row.appendChild(saveBtn);
+
+    const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
+    rmBtn.onclick = async ()=>{ try{ await apiUpsert(k, ''); alert('Removed'); await loadAll(); }catch(e){ showError(e.message||'Remove failed'); } };
+    row.appendChild(rmBtn);
+
+    list.appendChild(row);
+  });
+}
+</script>
   </script>
 </body>
 </html>
