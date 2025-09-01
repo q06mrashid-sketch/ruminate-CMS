@@ -178,6 +178,12 @@
     const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
+    // Safe access to optional configuration and checkout URLs
+    const cfg = (window.CONFIG ?? {});
+    const checkout = (cfg.checkoutUrls ?? {});
+    const { pos, portal, app } = (cfg.checkoutUrls ?? { pos: '', portal: '', app: '' });
+    window.checkout = { pos, portal, app };
+
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
     function getAnon(){ return localStorage.getItem('cmsAnon') || ''; }
