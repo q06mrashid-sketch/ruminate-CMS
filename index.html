@@ -224,7 +224,12 @@
       showError('');
       const anon = getAnon();
       if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
-      const res = await fetch(`${getFnsUrl()}/cms-get`, { headers:{ 'Authorization': `Bearer ${anon}` }});
+      const res = await fetch(`${getFnsUrl()}/cms-get`, {
+        headers:{
+          'Authorization': `Bearer ${anon}`,
+          'apikey': anon
+        }
+      });
       if(!res.ok) throw new Error(`GET failed: ${res.status}`);
       const ct = res.headers.get('content-type') || '';
       try{
@@ -242,6 +247,7 @@
         method:'POST',
         headers:{
           'Authorization': `Bearer ${anon}`,
+          'apikey': anon,
           'content-type':'application/json',
           'x-cms-secret': WRITE_SECRET
         },
@@ -263,6 +269,7 @@
           method:'DELETE',
           headers:{
             'Authorization': `Bearer ${anon}`,
+            'apikey': anon,
             'x-cms-secret': WRITE_SECRET
           }
         });
@@ -783,7 +790,7 @@
       if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key” (top bar).'); return false; }
       const url = getFnsUrl();
       if(!url){ showError('Functions URL missing. Click “Set Functions URL” (top bar).'); return false; }
-      try{ await fetch(`${url}/cms-get`, { method:'GET', headers:{ 'Authorization': `Bearer ${anon}` }}); }
+      try{ await fetch(`${url}/cms-get`, { method:'GET', headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }}); }
       catch(e){ showError('Supabase Functions URL unreachable. Check the URL and network.'); return false; }
       return true;
     }
