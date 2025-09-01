@@ -17,10 +17,13 @@ async function setup() {
   return window;
 }
 
-test('apiDelete requires key before issuing request', async () => {
+test('apiDelete returns early when key is missing', async () => {
   const window = await setup();
-  window.fetch = async () => { throw new Error('fetch should not be called'); };
-  await assert.rejects(window.apiDelete(''), /key required/);
+  let called = false;
+  window.fetch = async () => { called = true; };
+  const out = await window.apiDelete('');
+  assert.equal(out, undefined);
+  assert.equal(called, false);
 });
 
 test('apiDelete propagates 400 errors', async () => {
