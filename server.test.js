@@ -110,3 +110,52 @@ test('OPTIONS allows apikey and x-client-info headers', async (t) => {
   assert.ok(allow.includes('apikey'));
   assert.ok(allow.includes('x-client-info'));
 });
+
+test('OPTIONS /cms-del returns required CORS headers', async (t) => {
+  fs.rmSync(DB_FILE, { force: true });
+  const server = await startServer();
+  t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
+  const port = server.address().port;
+
+  const res = await fetch(`http://localhost:${port}/cms-del`, {
+    method: 'OPTIONS',
+    headers: {
+      'Access-Control-Request-Headers': 'authorization, apikey, x-cms-secret, content-type, x-client-info',
+      'Access-Control-Request-Method': 'DELETE'
+    }
+  });
+
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.headers.get('access-control-allow-origin'), '*');
+  assert.strictEqual(
+    res.headers.get('access-control-allow-methods'),
+    'GET, POST, DELETE, OPTIONS'
+  );
+  assert.strictEqual(
+    res.headers.get('access-control-allow-headers'),
+    'authorization, apikey, x-cms-secret, content-type, x-client-info'
+  );
+});
+
+test('DELETE /cms-del returns required CORS headers', async (t) => {
+  fs.rmSync(DB_FILE, { force: true });
+  const server = await startServer();
+  t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
+  const port = server.address().port;
+
+  const res = await fetch(`http://localhost:${port}/cms-del?key=missing`, {
+    method: 'DELETE'
+  });
+  const body = await res.json();
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body, { ok: true });
+  assert.strictEqual(res.headers.get('access-control-allow-origin'), '*');
+  assert.strictEqual(
+    res.headers.get('access-control-allow-methods'),
+    'GET, POST, DELETE, OPTIONS'
+  );
+  assert.strictEqual(
+    res.headers.get('access-control-allow-headers'),
+    'authorization, apikey, x-cms-secret, content-type, x-client-info'
+  );
+});
