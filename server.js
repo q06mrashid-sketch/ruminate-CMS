@@ -42,7 +42,11 @@ function handleRequest(req, res) {
     req.on('end', () => {
       try {
         const { key, value } = JSON.parse(body || '{}');
-        if (!key) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'key required' })); }
+        if (!key) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify({ error: 'key required' }));
+        }
         const store = readStore();
         store[key] = value;
         writeStore(store);
@@ -50,6 +54,7 @@ function handleRequest(req, res) {
         res.end(JSON.stringify({ ok: true }));
       } catch (e) {
         res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({ error: 'invalid json' }));
       }
     });
