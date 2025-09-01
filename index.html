@@ -262,7 +262,7 @@
       const anon = getAnon();
       if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
       if(!key) throw new Error('key required');
-      key = key.replace(/\/$/, '');
+      key = key.trim().replace(/\/$/, '');
       let res;
       try {
         res = await fetch(`${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`, {
