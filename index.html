@@ -449,6 +449,27 @@
         if (fileInput.files && fileInput.files[0]) base64 = await readFileAsBase64(fileInput.files[0]);
 
         try {
+          // Clear previous variant if type toggled
+          const prevCat = data.category;
+          const prevSuffix = data.suffix;
+          const prevType = data.type || '';
+          if (prevCat && prevSuffix && prevType !== typeVal) {
+            const prevKey = prevType ? `${prevSuffix}.${prevType}` : prevSuffix;
+            const paths = [
+              `menu.${prevCat}.${prevKey}`,
+              `price.${prevCat}.${prevKey}`,
+              `desc.${prevCat}.${prevKey}`,
+              `image.${prevCat}.${prevKey}`,
+              `image.${prevCat}.${prevKey}.name`,
+              `alt.${prevCat}.${prevKey}`,
+              `extra.${prevCat}.${prevKey}`,
+              `syrups-on.${prevCat}.${prevKey}`,
+              `syrup-on.${prevCat}.${prevKey}`,
+              `coffee-on.${prevCat}.${prevKey}`,
+            ];
+            for (const p of paths) await apiUpsert(p, '');
+          }
+
           // Standard fields
           await apiUpsert(`menu.${categoryVal}.${suffixFull}`, nameVal);
           await apiUpsert(`price.${categoryVal}.${suffixFull}`, priceVal);
@@ -464,6 +485,9 @@
           await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`,  cCoffee.cb.checked ? '1' : '');
 
           alert('Menu entry saved.');
+          data.category = categoryVal;
+          data.suffix = suffix;
+          data.type = typeVal;
           await loadAll();
         } catch (e) { showError(e.message || 'Save failed'); }
       };
