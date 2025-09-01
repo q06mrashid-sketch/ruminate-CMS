@@ -583,7 +583,6 @@
       const removeTd = document.createElement('td');
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
       removeBtn.onclick = async () => {
-        const prevText = removeBtn.textContent;
         removeBtn.disabled = true; removeBtn.textContent = 'Removing...';
         const currSuffix = (suffixInput.value || '').trim();
 
@@ -594,7 +593,7 @@
         if (currSuffix) bases.add(currSuffix);
 
         // if nothing to clear just remove the row locally
-        if (bases.size === 0) { tr.parentElement.removeChild(tr); return; }
+        if (bases.size === 0) { tr.remove(); return; }
 
         // derive suffix variants: plain and with .drink
         const suffixes = new Set();
@@ -603,36 +602,29 @@
           suffixes.add(`${b}.drink`);
         }
 
-        const tryDelete = async (key) => {
-          try {
-            await apiDelete(key);
-          } catch (e) {
-            if (!/key required/i.test(e.message || '')) throw e;
-          }
-        };
-
         try {
-          for (const cat of ['coffee','not-coffee','pif','specials']) {
-            for (const suf of suffixes) {
-              await tryDelete(`menu.${cat}.${suf}`);
-              await tryDelete(`price.${cat}.${suf}`);
-              await tryDelete(`desc.${cat}.${suf}`);
-              await tryDelete(`image.${cat}.${suf}`);
-              await tryDelete(`image.${cat}.${suf}.name`);
-              await tryDelete(`alt.${cat}.${suf}`);
-              await tryDelete(`extra.${cat}.${suf}`);
-              await tryDelete(`syrups-on.${cat}.${suf}`);
-              await tryDelete(`syrup-on.${cat}.${suf}`);
-              await tryDelete(`coffee-on.${cat}.${suf}`);
-            }
-          }
-          tr.parentElement.removeChild(tr);
-          showStatus('Removed');
+          const keys = [];
+          for (const cat of ['coffee','not-coffee','pif','specials'])
+            for (const suf of suffixes)
+              keys.push(
+                `menu.${cat}.${suf}`,
+                `price.${cat}.${suf}`,
+                `desc.${cat}.${suf}`,
+                `image.${cat}.${suf}`,
+                `image.${cat}.${suf}.name`,
+                `alt.${cat}.${suf}`,
+                `extra.${cat}.${suf}`,
+                `syrups-on.${cat}.${suf}`,
+                `syrup-on.${cat}.${suf}`,
+                `coffee-on.${cat}.${suf}`
+              );
+
+          await Promise.allSettled(keys.map(k => apiDelete(k)));
         } catch (e) {
           showError(e.message || 'Remove failed');
-          removeBtn.disabled = false; removeBtn.textContent = prevText;
-          return;
         }
+        tr.remove();
+        showStatus('Removed');
         try {
           await loadAll();
         } catch (e) {
