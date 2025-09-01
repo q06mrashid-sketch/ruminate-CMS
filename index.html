@@ -243,7 +243,7 @@
       });
       const out = await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(out.error || `Delete failed (${res.status})`);
-      return out;
+      return out; // success handled by caller
     }
 
     // ---- Hours UI ----
@@ -308,7 +308,18 @@
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
-        rmBtn.onclick = async ()=>{ try{ await apiDelete(k); alert('Removed'); await loadAll(); }catch(e){ showError(e.message||'Remove failed'); } };
+        rmBtn.onclick = async () => {
+          const prevText = rmBtn.textContent;
+          rmBtn.disabled = true; rmBtn.textContent = 'Removing...';
+          try {
+            await apiDelete(k);
+            row.remove();
+            await loadAll();
+          } catch (e) {
+            showError(e.message || 'Remove failed');
+            rmBtn.disabled = false; rmBtn.textContent = prevText;
+          }
+        };
         row.appendChild(rmBtn);
 
         list.appendChild(row);
@@ -513,6 +524,8 @@
       const removeTd = document.createElement('td');
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
       removeBtn.onclick = async () => {
+        const prevText = removeBtn.textContent;
+        removeBtn.disabled = true; removeBtn.textContent = 'Removing...';
         const currSuffix = (suffixInput.value || '').trim();
 
 
@@ -548,7 +561,10 @@
           }
           tr.parentElement.removeChild(tr);
           await loadAll();
-        } catch (e) { showError(e.message || 'Remove failed'); }
+        } catch (e) {
+          showError(e.message || 'Remove failed');
+          removeBtn.disabled = false; removeBtn.textContent = prevText;
+        }
       };
       removeTd.appendChild(removeBtn);
       tr.appendChild(removeTd);
@@ -619,7 +635,18 @@
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
-        rmBtn.onclick = async () => { try { await apiDelete(k); alert('Removed'); await loadAll(); } catch(e){ showError(e.message || 'Remove failed'); } };
+        rmBtn.onclick = async () => {
+          const prevText = rmBtn.textContent;
+          rmBtn.disabled = true; rmBtn.textContent = 'Removing...';
+          try {
+            await apiDelete(k);
+            row.remove();
+            await loadAll();
+          } catch(e){
+            showError(e.message || 'Remove failed');
+            rmBtn.disabled = false; rmBtn.textContent = prevText;
+          }
+        };
         row.appendChild(rmBtn);
 
         box.appendChild(row);
