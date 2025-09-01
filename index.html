@@ -296,7 +296,7 @@
     // ---- Generic key/value list (with Remove) ----
     function renderList(map){
       const list = $id('list'); list.innerHTML='';
-      const keys = Object.keys(map||{}).sort();
+      const keys = Object.keys(map||{}).filter(k => map[k] !== '').sort();
       if(!keys.length){ list.innerHTML = '<div>No entries yet.</div>'; return; }
       keys.forEach(k=>{
         const row = document.createElement('div'); row.className='row';
@@ -304,7 +304,7 @@
         const inp = document.createElement('input'); inp.type='text'; inp.value=map[k]||''; row.appendChild(inp);
 
         const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
-        saveBtn.onclick = async ()=>{ try{ await apiUpsert(k, inp.value); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
+        saveBtn.onclick = async ()=>{ try{ inp.value ? await apiUpsert(k, inp.value) : await apiDelete(k); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
@@ -498,17 +498,26 @@
 
           // Standard fields
           await apiUpsert(`menu.${categoryVal}.${suffixFull}`, nameVal);
-          await apiUpsert(`price.${categoryVal}.${suffixFull}`, priceVal);
-          await apiUpsert(`desc.${categoryVal}.${suffixFull}`, descVal);
-          if (base64) await apiUpsert(`image.${categoryVal}.${suffixFull}`, base64);
-          if (imageNameVal) await apiUpsert(`image.${categoryVal}.${suffixFull}.name`, imageNameVal);
+          if (priceVal) await apiUpsert(`price.${categoryVal}.${suffixFull}`, priceVal); else await apiDelete(`price.${categoryVal}.${suffixFull}`);
+          if (descVal) await apiUpsert(`desc.${categoryVal}.${suffixFull}`, descVal); else await apiDelete(`desc.${categoryVal}.${suffixFull}`);
+          if (base64) {
+            await apiUpsert(`image.${categoryVal}.${suffixFull}`, base64);
+          } else if (!imageNameVal) {
+            await apiDelete(`image.${categoryVal}.${suffixFull}`);
+          }
+          if (imageNameVal) await apiUpsert(`image.${categoryVal}.${suffixFull}.name`, imageNameVal); else await apiDelete(`image.${categoryVal}.${suffixFull}.name`);
 
           // Eligibility flags
-          await apiUpsert(`alt.${categoryVal}.${suffixFull}`,        cAlt.cb.checked ? '1' : '');
-          await apiUpsert(`extra.${categoryVal}.${suffixFull}`,      cExtra.cb.checked ? '1' : '');
-          await apiUpsert(`syrups-on.${categoryVal}.${suffixFull}`,  cSyrups.cb.checked ? '1' : '');
-          await apiUpsert(`syrup-on.${categoryVal}.${suffixFull}`,   cSyrups.cb.checked ? '1' : ''); // optional compat
-          await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`,  cCoffee.cb.checked ? '1' : '');
+          if (cAlt.cb.checked) await apiUpsert(`alt.${categoryVal}.${suffixFull}`, '1'); else await apiDelete(`alt.${categoryVal}.${suffixFull}`);
+          if (cExtra.cb.checked) await apiUpsert(`extra.${categoryVal}.${suffixFull}`, '1'); else await apiDelete(`extra.${categoryVal}.${suffixFull}`);
+          if (cSyrups.cb.checked) {
+            await apiUpsert(`syrups-on.${categoryVal}.${suffixFull}`, '1');
+            await apiUpsert(`syrup-on.${categoryVal}.${suffixFull}`, '1'); // optional compat
+          } else {
+            await apiDelete(`syrups-on.${categoryVal}.${suffixFull}`);
+            await apiDelete(`syrup-on.${categoryVal}.${suffixFull}`);
+          }
+          if (cCoffee.cb.checked) await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`, '1'); else await apiDelete(`coffee-on.${categoryVal}.${suffixFull}`);
 
           alert('Menu entry saved.');
           data.category = categoryVal;
