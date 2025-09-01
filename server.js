@@ -20,10 +20,10 @@ function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 200;
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
     const requestedMethod = req.headers['access-control-request-method'];
     if (requestedMethod) {
       res.setHeader('Access-Control-Allow-Methods', requestedMethod);
