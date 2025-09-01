@@ -340,11 +340,16 @@
           try {
             await apiDelete(k);
             row.remove();
-            await loadAll();
             showStatus('Removed');
           } catch (e) {
             showError(e.message || 'Remove failed');
             rmBtn.disabled = false; rmBtn.textContent = prevText;
+            return;
+          }
+          try {
+            await loadAll();
+          } catch (e) {
+            showError(e.message || 'Refresh failed');
           }
         };
         row.appendChild(rmBtn);
@@ -547,12 +552,16 @@
           }
           if (cCoffee.cb.checked) await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`, '1'); else await apiDelete(`coffee-on.${categoryVal}.${suffixFull}`);
 
-          showStatus('Menu entry saved.');
+          showStatus('Saved');
           data.category = categoryVal;
           data.suffix = suffix;
           data.type = typeVal;
+        } catch (e) { showError(e.message || 'Save failed'); return; }
+        try {
           await loadAll();
-        } catch (e) { showError(e.message || 'Save failed'); }
+        } catch (e) {
+          showError(e.message || 'Refresh failed');
+        }
       };
       saveTd.appendChild(saveBtn);
       tr.appendChild(saveTd);
@@ -605,11 +614,16 @@
             }
           }
           tr.parentElement.removeChild(tr);
-          await loadAll();
           showStatus('Removed');
         } catch (e) {
           showError(e.message || 'Remove failed');
           removeBtn.disabled = false; removeBtn.textContent = prevText;
+          return;
+        }
+        try {
+          await loadAll();
+        } catch (e) {
+          showError(e.message || 'Refresh failed');
         }
       };
       removeTd.appendChild(removeBtn);
@@ -687,11 +701,16 @@
           try {
             await apiDelete(k);
             row.remove();
-            await loadAll();
             showStatus('Removed');
           } catch(e){
             showError(e.message || 'Remove failed');
             rmBtn.disabled = false; rmBtn.textContent = prevText;
+            return;
+          }
+          try {
+            await loadAll();
+          } catch (e) {
+            showError(e.message || 'Refresh failed');
           }
         };
         row.appendChild(rmBtn);
@@ -712,8 +731,13 @@
             await apiUpsert(`coffee.${suf}`, lab);
             document.getElementById('coffeeSuffix').value='';
             document.getElementById('coffeeLabel').value='';
+            showStatus('Saved');
+          } catch(e){ showError(e.message || 'Save failed'); return; }
+          try {
             await loadAll();
-          } catch(e){ showError(e.message || 'Save failed'); }
+          } catch (e) {
+            showError(e.message || 'Refresh failed');
+          }
         });
         coffeeForm.dataset.bound = '1';
       }
@@ -729,8 +753,13 @@
             await apiUpsert(`syrups.${suf}`, lab);
             document.getElementById('syrupSuffix').value='';
             document.getElementById('syrupLabel').value='';
+            showStatus('Saved');
+          } catch(e){ showError(e.message || 'Save failed'); return; }
+          try {
             await loadAll();
-          } catch(e){ showError(e.message || 'Save failed'); }
+          } catch (e) {
+            showError(e.message || 'Refresh failed');
+          }
         });
         syrupForm.dataset.bound = '1';
       }
@@ -813,8 +842,13 @@
         await apiUpsert(key, val);
         document.getElementById('newKey').value='';
         document.getElementById('newVal').value='';
+        showStatus('Saved');
+      }catch(e){ showError(e.message||'Save failed'); return; }
+      try {
         await loadAll();
-      }catch(e){ showError(e.message||'Save failed'); }
+      } catch (e) {
+        showError(e.message || 'Refresh failed');
+      }
     });
 
     if(localStorage.getItem('ruminateAuth')==='true'){ loadAll(); }
