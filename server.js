@@ -23,6 +23,11 @@ function handleRequest(req, res) {
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 200;
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE');
+    const requestedMethod = req.headers['access-control-request-method'];
+    if (requestedMethod) {
+      res.setHeader('Access-Control-Allow-Methods', requestedMethod);
+    }
     return res.end();
   }
 
