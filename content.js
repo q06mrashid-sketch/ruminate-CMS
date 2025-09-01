@@ -1,178 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ruminate CMS Editor</title>
-  <style>
-    :root { --fg:#111; --muted:#666; --line:#bbb; --pad:10px; }
-    body { font-family: system-ui, Arial; margin: 2rem; line-height: 1.5; color: var(--fg); }
-    h1 { text-align: center; }
-    #editor { display: none; }
-    .row { display:flex; gap:10px; margin-bottom:10px; align-items:center; }
-    .row label { width:140px; font-weight:600; }
-    .row input[type="text"], .row input[type="password"] { flex:1; padding:8px; }
-    .row button { padding:8px 12px; }
-    .list { margin-top:18px; }
-    .hint { color:var(--muted); font-size:13px; margin-bottom:12px; }
-    .topbar { display:flex; gap:10px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
-    .topbar button { padding:6px 10px; }
-    .section { margin-top:22px; padding-top:6px; border-top:1px dashed var(--line); }
-    .section h2 { margin:6px 0 12px; font-size:18px; }
-    .hoursHeader { font-weight:700; color:#333; margin-bottom:6px; }
-    .hoursRow { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
-    .hoursRow label { width:140px; font-weight:600; }
-    .hoursRow input { width:130px; padding:8px; }
-    .right { display:flex; gap:10px; justify-content:flex-end; }
-    #status { color:#006400; margin:10px 0; opacity:0; transition:opacity 0.3s; }
-    #status.show { opacity:1; }
-    #status:empty { margin:0; }
-    #err { display:none; color:#b00020; margin:10px 0; }
-    /* Password gate */
-    #gate { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#fff; }
-    #gate .box { width:min(520px, 92vw); border:1px solid var(--line); padding:20px; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,0.07); }
-    #gate .box h2 { margin:0 0 12px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border-bottom: 1px dashed var(--line); padding: 6px; vertical-align: middle; }
-    th { text-align: left; }
-  </style>
-  <script>
-    window.CONFIG = window.CONFIG || { checkoutUrls:{pos:'', portal:'', app:''} };
-  </script>
-  <script src="content.js" defer></script>
-</head>
-<body>
-
-  <!-- Password gate -->
-  <div id="gate">
-    <div class="box">
-      <h2>Enter page password</h2>
-      <div class="row">
-        <label for="pw">Password</label>
-        <input id="pw" type="password" placeholder="••••••••••••" />
-      </div>
-      <div class="row">
-        <button id="enter">Enter</button>
-        <button id="remember">Remember this device</button>
-      </div>
-      <div class="hint">Tip: You can save your Supabase Anon key after login from the top bar.</div>
-    </div>
-  </div>
-
-  <div id="editor">
-    <h1>Ruminate CMS</h1>
-
-    <div class="topbar">
-      <button id="resetAuth">Reset page password</button>
-      <button id="setAnon">Set Supabase anon key</button>
-      <button id="setFnsUrl">Set Functions URL</button>
-    </div>
-    <div id="status"></div>
-    <div id="err"></div>
-
-    <div class="hint">
-      Keys used by the app: <b>special 1</b>, <b>special 2</b>, <b>rumi quote</b>.<br/>
-      Opening hours keys:
-      <code>hours.mon.open/close</code> … <code>hours.sun.open/close</code>.<br/>
-      Friday split hours:
-      <code>hours.fri.open1</code>, <code>hours.fri.close1</code>, <code>hours.fri.open2</code>, <code>hours.fri.close2</code>.
-    </div>
-
-    <!-- Opening hours editor -->
-    <div class="section">
-      <h2>Opening hours (Mon–Sun)</h2>
-      <div class="hoursHeader row">
-        <label>Day</label>
-        <input type="text" value="Open" disabled />
-        <input type="text" value="Close" disabled />
-        <span style="width:1px;"></span>
-      </div>
-
-      <div id="hoursRows"></div>
-
-      <div class="row right">
-        <button id="saveHoursAll">Save all hours</button>
-      </div>
-    </div>
-
-    <!-- Generic key/value editor -->
-    <div class="section">
-      <h2>Key / Value entries</h2>
-      <form id="addForm" class="row">
-        <input id="newKey" type="text" placeholder="key e.g. special 1" required />
-        <input id="newVal" type="text" placeholder="value text" required />
-        <button type="submit">Add / Update</button>
-      </form>
-
-      <div id="list" class="list"></div>
-    </div>
-
-    <!-- Menu items -->
-    <div class="section">
-      <h2>Menu items</h2>
-      <div class="hint">
-        Keys written on save:
-        <code>menu.&lt;category&gt;.&lt;suffix&gt;</code>,
-        <code>price.&lt;category&gt;.&lt;suffix&gt;</code>,
-        <code>desc.&lt;category&gt;.&lt;suffix&gt;</code>,
-        <code>image.&lt;category&gt;.&lt;suffix&gt;</code> (base64),
-        <code>image.&lt;category&gt;.&lt;suffix&gt;.name</code> (image name).<br/>
-        Items marked as Drink append <code>.drink</code> to the suffix.<br/>
-        Categories: <code>coffee</code>, <code>not-coffee</code>, <code>pif</code>, <code>specials</code>.<br/>
-        Eligibility flags written on save:
-        <code>alt.&lt;category&gt;.&lt;suffix&gt;</code>,
-        <code>extra.&lt;category&gt;.&lt;suffix&gt;</code>,
-        <code>syrups-on.&lt;category&gt;.&lt;suffix&gt;</code> (and <code>syrup-on.*</code> for compat),
-        <code>coffee-on.&lt;category&gt;.&lt;suffix&gt;</code>.
-      </div>
-      <button id="addMenuRow">Add Menu Row</button>
-      <table style="margin-top:10px">
-        <thead>
-          <tr>
-            <th>Key Suffix</th>
-            <th>Item Name</th>
-            <th>Price</th>
-            <th>Description</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th>Options</th>
-            <th>Image Name / Upload</th>
-            <th>Save</th>
-            <th>Remove</th>
-          </tr>
-        </thead>
-        <tbody id="menuRows"></tbody>
-      </table>
-    </div>
-
-    <!-- Coffee blends -->
-    <div class="section">
-      <h2>Coffee blends</h2>
-      <div class="hint">Add blends as <code>coffee.&lt;suffix&gt;</code> → label</div>
-      <form id="addCoffeeForm" class="row">
-        <input id="coffeeSuffix" type="text" placeholder="suffix e.g. single-origin" required />
-        <input id="coffeeLabel" type="text" placeholder="label e.g. Single Origin" required />
-        <button type="submit">Add / Update Blend</button>
-      </form>
-      <div id="coffeeRows" class="list"></div>
-    </div>
-
-    <!-- Syrups -->
-    <div class="section">
-      <h2>Syrups</h2>
-      <div class="hint">Add syrups as <code>syrups.&lt;suffix&gt;</code> → label</div>
-      <form id="addSyrupForm" class="row">
-        <input id="syrupSuffix" type="text" placeholder="suffix e.g. vanilla" required />
-        <input id="syrupLabel" type="text" placeholder="label e.g. Vanilla" required />
-        <button type="submit">Add / Update Syrup</button>
-      </form>
-      <div id="syrupsRows" class="list"></div>
-    </div>
-
-  </div>
-
-
-  <script>
     // ---- Config (can override via localStorage) ----
     const DEFAULT_FUNCTIONS_URL = "https://eamewialuovzguldcdcf.functions.supabase.co";
     const WRITE_SECRET = "Misterbignose12!";
@@ -264,12 +89,8 @@
     }
     async function apiDelete(key){
       showError('');
-      const SUPABASE_ANON_KEY = getAnon();
-      if(!SUPABASE_ANON_KEY){
-        const msg = 'Supabase Anon key not set (click “Set Supabase anon key”).';
-        showError(msg);
-        throw new Error(msg);
-      }
+      const anon = getAnon();
+      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
       let res;
@@ -277,25 +98,21 @@
         res = await fetch(`${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`, {
           method:'DELETE',
           headers:{
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            'x-cms-secret': WRITE_SECRET,
+            'Authorization': `Bearer ${anon}`,
+            'apikey': anon,
+            'x-cms-secret': WRITE_SECRET
           }
         });
       } catch (err) {
-        const msg = 'Network or CORS error while deleting key.';
-        showError(msg);
-        throw new Error(msg);
+        throw new Error('Network or CORS error while deleting key.');
       }
-      if(!res.ok && res.status !== 204){
-        const text = await res.text().catch(()=> '');
-        const msg = text || `Delete failed (${res.status})`;
-        showError(msg);
-        throw new Error(msg);
-      }
-      if(res.status === 204) return; // no body
-      return await res.json().catch(()=>({}));
+      const out = await res.json().catch(()=>({}));
+      // If the key does not exist the backend may respond with 404.
+      // Treat that as success so that optional blank fields do not
+      // abort the save operation.
+      if(!res.ok && res.status !== 404)
+        throw new Error(out.error || `Delete failed (${res.status})`);
+      return out; // success handled by caller
     }
 
     // ---- Hours UI ----
@@ -884,7 +701,3 @@
     if(localStorage.getItem('ruminateAuth')==='true'){
       verifyConfig().then(ok => { if(ok) loadAll(); });
     }
-  </script>
-
-</body>
-</html>

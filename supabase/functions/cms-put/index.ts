@@ -1,4 +1,3 @@
-
 import { ALLOWED_ORIGINS, corsHeaders, handleOptions, json } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
@@ -10,8 +9,13 @@ Deno.serve(async (req) => {
     return json({ error: 'origin not allowed' }, { status: 403 });
   }
 
-  if (req.method !== 'DELETE') {
+  if (req.method !== 'PUT') {
     return json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const auth = req.headers.get('authorization');
+  if (!auth || !auth.toLowerCase().startsWith('bearer')) {
+    return json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const url = new URL(req.url);
@@ -21,15 +25,14 @@ Deno.serve(async (req) => {
   }
   const key = decodeURIComponent(keyParam);
 
-  const auth = req.headers.get('authorization');
-  if (!auth || !auth.toLowerCase().startsWith('bearer')) {
-    return json({ error: 'unauthorized' }, { status: 401 });
-
+  let value: unknown;
+  try {
+    const body = await req.json();
+    value = body?.value;
+  } catch {
+    return json({ error: 'invalid json' }, { status: 400 });
   }
 
-  // In a real implementation you would remove the key from your store here.
-  // This demo simply acknowledges the request.
-
+  // In a real implementation you would store the key/value pair here.
   return json({ ok: true });
-
 });
