@@ -36,6 +36,12 @@
     th, td { border-bottom: 1px dashed var(--line); padding: 6px; vertical-align: middle; }
     th { text-align: left; }
   </style>
+  <script>
+    // Hard defaults so the bundle can read safely
+    window.DEFAULT_FUNCTIONS_URL ??= 'https://eamewialuovzguldcdcf.functions.supabase.co';
+    window.CONFIG = window.CONFIG || {};
+    window.CONFIG.checkoutUrls = window.CONFIG.checkoutUrls || { pos: '', portal: '', app: '' };
+  </script>
   <script src="shim.js"></script>
   <script src="content.js?v=__BUILD_HASH__" defer></script>
 </head>
