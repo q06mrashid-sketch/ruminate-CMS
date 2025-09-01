@@ -58,10 +58,20 @@ function handleRequest(req, res) {
 
   if (req.method === 'DELETE' && url.pathname === '/cms-del') {
     const key = url.searchParams.get('key');
+    res.setHeader('Content-Type', 'application/json');
+    if (!key) {
+      res.statusCode = 400;
+      console.warn('DELETE /cms-del missing key');
+      return res.end(JSON.stringify({ error: 'key required' }));
+    }
     const store = readStore();
+    if (!Object.prototype.hasOwnProperty.call(store, key)) {
+      res.statusCode = 400;
+      console.warn('DELETE /cms-del unknown key', key);
+      return res.end(JSON.stringify({ error: 'key required' }));
+    }
     delete store[key];
     writeStore(store);
-    res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ ok: true }));
   }
 
