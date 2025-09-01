@@ -226,7 +226,13 @@
       if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
       const res = await fetch(`${getFnsUrl()}/cms-get`, { headers:{ 'Authorization': `Bearer ${anon}` }});
       if(!res.ok) throw new Error(`GET failed: ${res.status}`);
-      return res.json();
+      const ct = res.headers.get('content-type') || '';
+      try{
+        if(!ct.includes('application/json')) throw new Error();
+        return await res.json();
+      }catch(err){
+        throw new Error('Unexpected response format');
+      }
     }
     async function apiUpsert(key, value){
       showError('');
