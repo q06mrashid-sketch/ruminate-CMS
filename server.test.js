@@ -12,6 +12,43 @@ function startServer() {
   return new Promise(resolve => server.listen(0, () => resolve(server)));
 }
 
+test('POST /cms-set stores key/value pair to store.json', async (t) => {
+  fs.rmSync(DB_FILE, { force: true });
+  const server = await startServer();
+  t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
+  const port = server.address().port;
+
+  const res = await fetch(`http://localhost:${port}/cms-set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'greeting', value: 'hello' })
+  });
+  const body = await res.json();
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body, { ok: true });
+
+  const stored = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  assert.deepStrictEqual(stored, { greeting: 'hello' });
+});
+
+test('GET /cms-get returns stored data', async (t) => {
+  fs.rmSync(DB_FILE, { force: true });
+  const server = await startServer();
+  t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
+  const port = server.address().port;
+
+  await fetch(`http://localhost:${port}/cms-set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'language', value: 'JavaScript' })
+  });
+
+  const res = await fetch(`http://localhost:${port}/cms-get`);
+  const body = await res.json();
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body, { language: 'JavaScript' });
+});
+
 test('DELETE /cms-del requires key parameter', async (t) => {
   fs.rmSync(DB_FILE, { force: true });
   const server = await startServer();
