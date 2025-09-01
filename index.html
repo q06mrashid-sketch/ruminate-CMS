@@ -498,22 +498,31 @@
       const removeTd = document.createElement('td');
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
       removeBtn.onclick = async () => {
-        const suffix = (suffixInput.value || '').trim();
-        const typeVal = typeDrink.checked ? 'drink' : '';
-        const suffixFull = typeVal ? `${suffix}.${typeVal}` : suffix;
-        if (!suffix) { tr.parentElement.removeChild(tr); return; }
+        const currSuffix = (suffixInput.value || '').trim();
+        const currType = typeDrink.checked ? 'drink' : '';
+        const origSuffix = (data.suffix || '').trim();
+        const origType = data.type === 'drink' ? 'drink' : '';
+
+        const suffixes = new Set();
+        const currSuffixFull = currType ? `${currSuffix}.${currType}` : currSuffix;
+        const origSuffixFull = origType ? `${origSuffix}.${origType}` : origSuffix;
+        if (currSuffix) suffixes.add(currSuffixFull);
+        if (origSuffix) suffixes.add(origSuffixFull);
+        if (suffixes.size === 0) { tr.parentElement.removeChild(tr); return; }
         try {
-          for (const cat of ['coffee','not-coffee','pif','specials']) {
-            await apiUpsert(`menu.${cat}.${suffixFull}`, '');
-            await apiUpsert(`price.${cat}.${suffixFull}`, '');
-            await apiUpsert(`desc.${cat}.${suffixFull}`, '');
-            await apiUpsert(`image.${cat}.${suffixFull}`, '');
-            await apiUpsert(`image.${cat}.${suffixFull}.name`, '');
-            await apiUpsert(`alt.${cat}.${suffixFull}`, '');
-            await apiUpsert(`extra.${cat}.${suffixFull}`, '');
-            await apiUpsert(`syrups-on.${cat}.${suffixFull}`, '');
-            await apiUpsert(`syrup-on.${cat}.${suffixFull}`, '');
-            await apiUpsert(`coffee-on.${cat}.${suffixFull}`, '');
+          for (const suffixFull of suffixes) {
+            for (const cat of ['coffee','not-coffee','pif','specials']) {
+              await apiUpsert(`menu.${cat}.${suffixFull}`, '');
+              await apiUpsert(`price.${cat}.${suffixFull}`, '');
+              await apiUpsert(`desc.${cat}.${suffixFull}`, '');
+              await apiUpsert(`image.${cat}.${suffixFull}`, '');
+              await apiUpsert(`image.${cat}.${suffixFull}.name`, '');
+              await apiUpsert(`alt.${cat}.${suffixFull}`, '');
+              await apiUpsert(`extra.${cat}.${suffixFull}`, '');
+              await apiUpsert(`syrups-on.${cat}.${suffixFull}`, '');
+              await apiUpsert(`syrup-on.${cat}.${suffixFull}`, '');
+              await apiUpsert(`coffee-on.${cat}.${suffixFull}`, '');
+            }
           }
           tr.parentElement.removeChild(tr);
           await loadAll();
