@@ -1,18 +1,29 @@
-export const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').map(o => o.trim()).filter(Boolean);
+export const ALLOWED_ORIGINS = new Set<string>([
+  'https://q06mrashid-sketch.github.io',
+  'http://localhost:5173',
+  'http://localhost:3000',
+]);
 
-export const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, x-cms-secret, content-type, x-client-info',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS'
-};
-
-export function handleOptions(req: Request): Response | void {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+export function corsHeaders(origin?: string) {
+  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://q06mrashid-sketch.github.io';
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Vary': 'Origin',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Max-Age': '86400',
+  } as const;
 }
 
-export function json(body: unknown, init: ResponseInit = {}): Response {
-  const headers = { ...corsHeaders, 'Content-Type': 'application/json', ...(init.headers || {}) };
+export function handleOptions(req: Request) {
+  if (req.method === 'OPTIONS') {
+    const origin = req.headers.get('Origin') ?? undefined;
+    return new Response('ok', { status: 200, headers: corsHeaders(origin) });
+  }
+  return null;
+}
+
+export function json(body: unknown, init: ResponseInit = {}, origin?: string) {
+  const headers = { 'Content-Type': 'application/json', ...corsHeaders(origin), ...(init.headers ?? {}) };
   return new Response(JSON.stringify(body), { ...init, headers });
 }

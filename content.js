@@ -3,6 +3,11 @@
     const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
+    // Safe CONFIG defaults
+    const config = (globalThis.CONFIG ?? {});
+    const { pos, portal, app } = (config?.checkoutUrls ?? { pos: '', portal: '', app: '' });
+    globalThis.checkout = { pos, portal, app };
+
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
     function getAnon(){ return localStorage.getItem('cmsAnon') || ''; }
@@ -94,25 +99,25 @@
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
       let res;
+      const url = `${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`;
       try {
-        res = await fetch(`${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`, {
+        res = await fetch(url, {
           method:'DELETE',
           headers:{
-            'Authorization': `Bearer ${anon}`,
+            'Content-Type':'application/json',
             'apikey': anon,
-            'x-cms-secret': WRITE_SECRET
+            'Authorization': `Bearer ${anon}`,
+            'x-client-info': 'cms-ui'
           }
         });
       } catch (err) {
         throw new Error('Network or CORS error while deleting key.');
       }
-      const out = await res.json().catch(()=>({}));
-      // If the key does not exist the backend may respond with 404.
-      // Treat that as success so that optional blank fields do not
-      // abort the save operation.
-      if(!res.ok && res.status !== 404)
-        throw new Error(out.error || `Delete failed (${res.status})`);
-      return out; // success handled by caller
+      if(!(res.ok || res.status === 204)){
+        const text = await res.text().catch(()=> '');
+        showError(text);
+        throw new Error(text || `cms-del failed ${res.status}`);
+      }
     }
 
     // ---- Hours UI ----
