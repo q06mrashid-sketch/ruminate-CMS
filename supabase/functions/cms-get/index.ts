@@ -9,23 +9,19 @@ Deno.serve(async (req) => {
     return json({ error: 'origin not allowed' }, { status: 403 });
   }
 
-  if (req.method !== 'DELETE') {
+  if (req.method !== 'GET') {
     return json({ error: 'Not found' }, { status: 404 });
   }
-
-  const url = new URL(req.url);
-  const keyParam = url.searchParams.get('key');
-  if (!keyParam) {
-    return json({ error: 'key required' }, { status: 400 });
-  }
-  const key = decodeURIComponent(keyParam);
 
   const auth = req.headers.get('authorization');
   if (!auth || !auth.toLowerCase().startsWith('bearer')) {
     return json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // In a real implementation you would remove the key from your store here.
-  // This demo simply acknowledges the request.
+  const url = new URL(req.url);
+  const keyParam = url.searchParams.get('key');
+  if (keyParam) decodeURIComponent(keyParam);
+
+  // In a real implementation you would retrieve data here.
   return json({ ok: true });
 });
