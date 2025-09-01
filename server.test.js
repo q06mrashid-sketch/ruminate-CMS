@@ -24,7 +24,7 @@ test('DELETE /cms-del requires key parameter', async (t) => {
   assert.deepStrictEqual(body, { error: 'key required' });
 });
 
-test('DELETE /cms-del rejects unknown key', async (t) => {
+test('DELETE /cms-del succeeds for unknown key', async (t) => {
   fs.rmSync(DB_FILE, { force: true });
   const server = await startServer();
   t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
@@ -32,6 +32,6 @@ test('DELETE /cms-del rejects unknown key', async (t) => {
 
   const res = await fetch(`http://localhost:${port}/cms-del?key=missing`, { method: 'DELETE' });
   const body = await res.json();
-  assert.strictEqual(res.status, 400);
-  assert.deepStrictEqual(body, { error: 'key required' });
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual(body, { ok: true });
 });

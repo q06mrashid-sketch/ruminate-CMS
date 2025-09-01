@@ -66,9 +66,8 @@ function handleRequest(req, res) {
     }
     const store = readStore();
     if (!Object.prototype.hasOwnProperty.call(store, key)) {
-      res.statusCode = 400;
       console.warn('DELETE /cms-del unknown key', key);
-      return res.end(JSON.stringify({ error: 'key required' }));
+      return res.end(JSON.stringify({ ok: true }));
     }
     delete store[key];
     writeStore(store);
