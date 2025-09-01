@@ -475,11 +475,12 @@
         if (fileInput.files && fileInput.files[0]) base64 = await readFileAsBase64(fileInput.files[0]);
 
         try {
-          // Clear previous variant if type toggled
+          // Clear previous keys if category, suffix, or type changed
           const prevCat = data.category;
           const prevSuffix = data.suffix;
           const prevType = data.type || '';
-          if (prevCat && prevSuffix && prevType !== typeVal) {
+          if (prevCat && prevSuffix &&
+              (prevCat !== categoryVal || prevSuffix !== suffix || prevType !== typeVal)) {
             const prevKey = prevType ? `${prevSuffix}.${prevType}` : prevSuffix;
             const paths = [
               `menu.${prevCat}.${prevKey}`,
