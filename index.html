@@ -110,6 +110,7 @@
         <code>desc.&lt;category&gt;.&lt;suffix&gt;</code>,
         <code>image.&lt;category&gt;.&lt;suffix&gt;</code> (base64),
         <code>image.&lt;category&gt;.&lt;suffix&gt;.name</code> (image name).<br/>
+        Items marked as Drink append <code>.drink</code> to the suffix.<br/>
         Categories: <code>coffee</code>, <code>not-coffee</code>, <code>pif</code>, <code>specials</code>.<br/>
         Eligibility flags written on save:
         <code>alt.&lt;category&gt;.&lt;suffix&gt;</code>,
@@ -126,6 +127,7 @@
             <th>Price</th>
             <th>Description</th>
             <th>Category</th>
+            <th>Type</th>
             <th>Options</th>
             <th>Image Name / Upload</th>
             <th>Save</th>
@@ -379,6 +381,25 @@
         .forEach(el => catTd.appendChild(el));
       tr.appendChild(catTd);
 
+      // drink / not drink radios
+      const typeTd = document.createElement('td');
+      const typeGroup = `type-${Date.now()}-${Math.random()}`;
+      function mkType(val, labelText) {
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = typeGroup;
+        input.value = val;
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.style.marginRight = '8px';
+        return [input, label];
+      }
+      const [typeDrink, lblDrink]     = mkType('drink', 'Drink');
+      const [typeNot, lblNot]         = mkType('', 'Not Drink');
+      if (data.type === 'drink') typeDrink.checked = true; else typeNot.checked = true;
+      [typeDrink, lblDrink, typeNot, lblNot].forEach(el => typeTd.appendChild(el));
+      tr.appendChild(typeTd);
+
       // Options checkboxes (Alt / Syrups / Extra / Coffee blend)
       const optsTd = document.createElement('td');
       function mkCheck(id, labelText, checked=false) {
@@ -419,6 +440,8 @@
           catPif.checked       ? 'pif' :
           catSpecials.checked  ? 'specials' :
           '';
+        const typeVal = typeDrink.checked ? 'drink' : '';
+        const suffixFull = typeVal ? `${suffix}.${typeVal}` : suffix;
         const imageNameVal = (imgNameInput.value || '').trim();
         let base64 = '';
 
@@ -427,18 +450,18 @@
 
         try {
           // Standard fields
-          await apiUpsert(`menu.${categoryVal}.${suffix}`, nameVal);
-          await apiUpsert(`price.${categoryVal}.${suffix}`, priceVal);
-          await apiUpsert(`desc.${categoryVal}.${suffix}`, descVal);
-          if (base64) await apiUpsert(`image.${categoryVal}.${suffix}`, base64);
-          if (imageNameVal) await apiUpsert(`image.${categoryVal}.${suffix}.name`, imageNameVal);
+          await apiUpsert(`menu.${categoryVal}.${suffixFull}`, nameVal);
+          await apiUpsert(`price.${categoryVal}.${suffixFull}`, priceVal);
+          await apiUpsert(`desc.${categoryVal}.${suffixFull}`, descVal);
+          if (base64) await apiUpsert(`image.${categoryVal}.${suffixFull}`, base64);
+          if (imageNameVal) await apiUpsert(`image.${categoryVal}.${suffixFull}.name`, imageNameVal);
 
           // Eligibility flags
-          await apiUpsert(`alt.${categoryVal}.${suffix}`,        cAlt.cb.checked ? '1' : '');
-          await apiUpsert(`extra.${categoryVal}.${suffix}`,      cExtra.cb.checked ? '1' : '');
-          await apiUpsert(`syrups-on.${categoryVal}.${suffix}`,  cSyrups.cb.checked ? '1' : '');
-          await apiUpsert(`syrup-on.${categoryVal}.${suffix}`,   cSyrups.cb.checked ? '1' : ''); // optional compat
-          await apiUpsert(`coffee-on.${categoryVal}.${suffix}`,  cCoffee.cb.checked ? '1' : '');
+          await apiUpsert(`alt.${categoryVal}.${suffixFull}`,        cAlt.cb.checked ? '1' : '');
+          await apiUpsert(`extra.${categoryVal}.${suffixFull}`,      cExtra.cb.checked ? '1' : '');
+          await apiUpsert(`syrups-on.${categoryVal}.${suffixFull}`,  cSyrups.cb.checked ? '1' : '');
+          await apiUpsert(`syrup-on.${categoryVal}.${suffixFull}`,   cSyrups.cb.checked ? '1' : ''); // optional compat
+          await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`,  cCoffee.cb.checked ? '1' : '');
 
           alert('Menu entry saved.');
           await loadAll();
@@ -452,19 +475,21 @@
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
       removeBtn.onclick = async () => {
         const suffix = (suffixInput.value || '').trim();
+        const typeVal = typeDrink.checked ? 'drink' : '';
+        const suffixFull = typeVal ? `${suffix}.${typeVal}` : suffix;
         if (!suffix) { tr.parentElement.removeChild(tr); return; }
         try {
           for (const cat of ['coffee','not-coffee','pif','specials']) {
-            await apiUpsert(`menu.${cat}.${suffix}`, '');
-            await apiUpsert(`price.${cat}.${suffix}`, '');
-            await apiUpsert(`desc.${cat}.${suffix}`, '');
-            await apiUpsert(`image.${cat}.${suffix}`, '');
-            await apiUpsert(`image.${cat}.${suffix}.name`, '');
-            await apiUpsert(`alt.${cat}.${suffix}`, '');
-            await apiUpsert(`extra.${cat}.${suffix}`, '');
-            await apiUpsert(`syrups-on.${cat}.${suffix}`, '');
-            await apiUpsert(`syrup-on.${cat}.${suffix}`, '');
-            await apiUpsert(`coffee-on.${cat}.${suffix}`, '');
+            await apiUpsert(`menu.${cat}.${suffixFull}`, '');
+            await apiUpsert(`price.${cat}.${suffixFull}`, '');
+            await apiUpsert(`desc.${cat}.${suffixFull}`, '');
+            await apiUpsert(`image.${cat}.${suffixFull}`, '');
+            await apiUpsert(`image.${cat}.${suffixFull}.name`, '');
+            await apiUpsert(`alt.${cat}.${suffixFull}`, '');
+            await apiUpsert(`extra.${cat}.${suffixFull}`, '');
+            await apiUpsert(`syrups-on.${cat}.${suffixFull}`, '');
+            await apiUpsert(`syrup-on.${cat}.${suffixFull}`, '');
+            await apiUpsert(`coffee-on.${cat}.${suffixFull}`, '');
           }
           tr.parentElement.removeChild(tr);
           await loadAll();
@@ -491,23 +516,30 @@
         const parts = key.split('.');
         if (parts.length < 3) return; // menu.<category>.<suffix...>
         const category = parts[1];
-        const suffix = parts.slice(2).join('.');
+        const suffixParts = parts.slice(2);
+        let type = '';
+        if (suffixParts[suffixParts.length - 1] === 'drink') {
+          type = 'drink';
+          suffixParts.pop();
+        }
+        const suffix = suffixParts.join('.');
+        const suffixKey = type ? `${suffix}.drink` : suffix;
 
-        const item = items[suffix] || { suffix };
+        const item = items[suffixKey] || { suffix, type };
         item.category = category;
         item.name = map[key] || '';
 
-        item.price = map[`price.${category}.${suffix}`] || '';
-        item.desc = map[`desc.${category}.${suffix}`] || '';
-        item.imageName = map[`image.${category}.${suffix}.name`] || '';
+        item.price = map[`price.${category}.${suffixKey}`] || '';
+        item.desc = map[`desc.${category}.${suffixKey}`] || '';
+        item.imageName = map[`image.${category}.${suffixKey}.name`] || '';
 
         // eligibility flags
-        item.optAlt    = !!map[`alt.${category}.${suffix}`];
-        item.optExtra  = !!map[`extra.${category}.${suffix}`];
-        item.optSyrups = !!(map[`syrups-on.${category}.${suffix}`] || map[`syrup-on.${category}.${suffix}`]);
-        item.optCoffee = !!map[`coffee-on.${category}.${suffix}`];
+        item.optAlt    = !!map[`alt.${category}.${suffixKey}`];
+        item.optExtra  = !!map[`extra.${category}.${suffixKey}`];
+        item.optSyrups = !!(map[`syrups-on.${category}.${suffixKey}`] || map[`syrup-on.${category}.${suffixKey}`]);
+        item.optCoffee = !!map[`coffee-on.${category}.${suffixKey}`];
 
-        items[suffix] = item;
+        items[suffixKey] = item;
       });
 
       Object.values(items).forEach(entry => addMenuRow(entry));
