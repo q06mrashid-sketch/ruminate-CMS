@@ -1,11 +1,11 @@
     // ---- Config (can override via localStorage) ----
-    const DEFAULT_FUNCTIONS_URL = "https://eamewialuovzguldcdcf.functions.supabase.co";
+    const DEFAULT_FUNCTIONS_URL = globalThis.DEFAULT_FUNCTIONS_URL || 'https://eamewialuovzguldcdcf.functions.supabase.co';
     const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
     // Safe CONFIG defaults
     const config = (globalThis.CONFIG ?? {});
-    const { pos, portal, app } = (config?.checkoutUrls ?? { pos: '', portal: '', app: '' });
+    const { pos, portal, app } = (config.checkoutUrls ?? { pos: '', portal: '', app: '' });
     globalThis.checkout = { pos, portal, app };
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
@@ -102,9 +102,9 @@
       const url = `${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`;
       try {
         res = await fetch(url, {
-          method:'DELETE',
-          headers:{
-            'Content-Type':'application/json',
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
             'apikey': anon,
             'Authorization': `Bearer ${anon}`,
             'x-client-info': 'cms-ui'
@@ -113,10 +113,10 @@
       } catch (err) {
         throw new Error('Network or CORS error while deleting key.');
       }
-      if(!(res.ok || res.status === 204)){
-        const text = await res.text().catch(()=> '');
+      if (!(res.ok || res.status === 204)) {
+        const text = await res.text().catch(() => '');
         showError(text);
-        throw new Error(text || `cms-del failed ${res.status}`);
+        throw new Error(`cms-del failed ${res.status}: ${text}`);
       }
     }
 
