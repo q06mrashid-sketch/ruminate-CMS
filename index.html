@@ -737,6 +737,16 @@
     }
 
     // ---- Page load orchestration ----
+    async function verifyConfig(){
+      const anon = getAnon();
+      if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key” (top bar).'); return false; }
+      const url = getFnsUrl();
+      if(!url){ showError('Functions URL missing. Click “Set Functions URL” (top bar).'); return false; }
+      try{ await fetch(`${url}/cms-get`, { method:'HEAD', headers:{ 'Authorization': `Bearer ${anon}` }}); }
+      catch(e){ showError('Supabase Functions URL unreachable. Check the URL and network.'); return false; }
+      return true;
+    }
+
     async function loadAll(){
       try{
         const data = await apiGetAll();
@@ -748,15 +758,15 @@
     }
 
     // ---- Events ----
-    $id('enter').addEventListener('click', ()=>{
+    $id('enter').addEventListener('click', async ()=>{
       const ok = checkPassword($id('pw').value, false);
       if(ok && !getAnon()) showStatus('Click “Set Supabase anon key” (top bar) to enable saving.', 4000);
-      if(ok) loadAll();
+      if(ok && await verifyConfig()) loadAll();
     });
-    $id('remember').addEventListener('click', ()=>{
+    $id('remember').addEventListener('click', async ()=>{
       const ok = checkPassword($id('pw').value, true);
       if(ok && !getAnon()) showStatus('Click “Set Supabase anon key” (top bar) to enable saving.', 4000);
-      if(ok) loadAll();
+      if(ok && await verifyConfig()) loadAll();
     });
 
     $id('resetAuth').addEventListener('click', ()=>{ clearAuth(); showStatus('Page password reset. Reloading...'); setTimeout(()=>location.reload(), 500); });
@@ -807,7 +817,9 @@
       }catch(e){ showError(e.message||'Save failed'); }
     });
 
-    if(localStorage.getItem('ruminateAuth')==='true'){ loadAll(); }
+    if(localStorage.getItem('ruminateAuth')==='true'){
+      verifyConfig().then(ok => { if(ok) loadAll(); });
+    }
   </script>
 </body>
 </html>
