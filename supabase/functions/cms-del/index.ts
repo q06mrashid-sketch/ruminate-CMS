@@ -1,3 +1,4 @@
+
 import { ALLOWED_ORIGINS, corsHeaders, handleOptions, json } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
@@ -23,9 +24,12 @@ Deno.serve(async (req) => {
   const auth = req.headers.get('authorization');
   if (!auth || !auth.toLowerCase().startsWith('bearer')) {
     return json({ error: 'unauthorized' }, { status: 401 });
+
   }
 
   // In a real implementation you would remove the key from your store here.
   // This demo simply acknowledges the request.
+
   return json({ ok: true });
+
 });
