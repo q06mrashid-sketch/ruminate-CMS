@@ -789,9 +789,11 @@
         renderList(data);
         renderMenu(data);
         renderCoffeeAndSyrups(data);
-      }catch(e){
-        console.error(e);
-        const msg = e?.message ? `Load failed: ${e.message}` : 'Load failed';
+      }catch(err){
+        if(err?.status || err?.body) console.error(err.status, err.body);
+        else console.error(err);
+        const statusPart = err?.status ? ` (status ${err.status})` : '';
+        const msg = err?.message ? `Load failed${statusPart}: ${err.message}` : `Load failed${statusPart}`;
         showError(msg);
       }
     }
