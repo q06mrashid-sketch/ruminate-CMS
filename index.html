@@ -744,7 +744,11 @@
         renderList(data);
         renderMenu(data);
         renderCoffeeAndSyrups(data);
-      }catch(e){ showError(e.message||'Load failed'); }
+      }catch(e){
+        console.error(e);
+        const msg = e?.message ? `Load failed: ${e.message}` : 'Load failed';
+        showError(msg);
+      }
     }
 
     // ---- Events ----
