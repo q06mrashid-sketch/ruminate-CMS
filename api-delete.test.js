@@ -33,3 +33,15 @@ test('apiDelete propagates 400 errors', async () => {
   await assert.rejects(window.apiDelete('bad.key'), /bad request/);
   assert.ok(called);
 });
+
+test('apiDelete removes trailing slash from key', async () => {
+  const window = await setup();
+  let url;
+  window.fetch = async (input) => {
+    url = input;
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
+  await window.apiDelete('foo/');
+  const sentKey = new URL(url).searchParams.get('key');
+  assert.equal(sentKey, 'foo');
+});
