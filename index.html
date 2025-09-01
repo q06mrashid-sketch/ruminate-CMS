@@ -242,7 +242,11 @@
         }
       });
       const out = await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(out.error || `Delete failed (${res.status})`);
+      // If the key does not exist the backend may respond with 400/404.
+      // Treat those as success so that optional blank fields do not
+      // abort the save operation.
+      if(!res.ok && res.status !== 400 && res.status !== 404)
+        throw new Error(out.error || `Delete failed (${res.status})`);
       return out; // success handled by caller
     }
 

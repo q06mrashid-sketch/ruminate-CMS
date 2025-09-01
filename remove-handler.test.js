@@ -21,7 +21,8 @@ test('remove handler deletes keys and clears row with missing data', async () =>
     if (existingKeys.has(key)) {
       return { ok: true, json: async () => ({ ok: true }) };
     }
-    return { ok: false, json: async () => ({ error: 'key required' }) };
+    // Simulate backend returning 404 for unknown keys
+    return { ok: false, status: 404, json: async () => ({ error: 'not found' }) };
   };
 
   let loadAllCalled = false;
