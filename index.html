@@ -544,19 +544,27 @@
           suffixes.add(`${b}.drink`);
         }
 
+        const tryDelete = async (key) => {
+          try {
+            await apiDelete(key);
+          } catch (e) {
+            if (!/key required/i.test(e.message || '')) throw e;
+          }
+        };
+
         try {
           for (const cat of ['coffee','not-coffee','pif','specials']) {
             for (const suf of suffixes) {
-              await apiDelete(`menu.${cat}.${suf}`);
-              await apiDelete(`price.${cat}.${suf}`);
-              await apiDelete(`desc.${cat}.${suf}`);
-              await apiDelete(`image.${cat}.${suf}`);
-              await apiDelete(`image.${cat}.${suf}.name`);
-              await apiDelete(`alt.${cat}.${suf}`);
-              await apiDelete(`extra.${cat}.${suf}`);
-              await apiDelete(`syrups-on.${cat}.${suf}`);
-              await apiDelete(`syrup-on.${cat}.${suf}`);
-              await apiDelete(`coffee-on.${cat}.${suf}`);
+              await tryDelete(`menu.${cat}.${suf}`);
+              await tryDelete(`price.${cat}.${suf}`);
+              await tryDelete(`desc.${cat}.${suf}`);
+              await tryDelete(`image.${cat}.${suf}`);
+              await tryDelete(`image.${cat}.${suf}.name`);
+              await tryDelete(`alt.${cat}.${suf}`);
+              await tryDelete(`extra.${cat}.${suf}`);
+              await tryDelete(`syrups-on.${cat}.${suf}`);
+              await tryDelete(`syrup-on.${cat}.${suf}`);
+              await tryDelete(`coffee-on.${cat}.${suf}`);
             }
           }
           tr.parentElement.removeChild(tr);
