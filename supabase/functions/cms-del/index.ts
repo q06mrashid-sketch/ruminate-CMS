@@ -1,35 +1,31 @@
 
-import { ALLOWED_ORIGINS, corsHeaders, handleOptions, json } from '../_shared/cors.ts';
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { handleOptions, json, corsHeaders } from '../_shared/cors.ts';
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   const opt = handleOptions(req);
   if (opt) return opt;
 
-  const origin = req.headers.get('origin') || '';
-  if (ALLOWED_ORIGINS.length && !ALLOWED_ORIGINS.includes(origin)) {
-    return json({ error: 'origin not allowed' }, { status: 403 });
+  const origin = req.headers.get('Origin') ?? undefined;
+
+  try {
+    if (req.method !== 'DELETE') {
+      return json({ error: 'Method not allowed' }, { status: 405 }, origin);
+    }
+
+    const url = new URL(req.url);
+    const key = url.searchParams.get('key');
+    if (!key) return json({ error: 'Missing key' }, { status: 400 }, origin);
+
+    const auth = req.headers.get('Authorization') ?? '';
+    const apiKey = req.headers.get('apikey') ?? '';
+    if (!auth.startsWith('Bearer ') || !apiKey) {
+      return json({ error: 'Unauthorized' }, { status: 401 }, origin);
+    }
+
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
+  } catch (err) {
+    console.error('cms-del error', err);
+    return json({ error: String((err as any)?.message ?? err) }, { status: 500 }, origin);
   }
-
-  if (req.method !== 'DELETE') {
-    return json({ error: 'Not found' }, { status: 404 });
-  }
-
-  const url = new URL(req.url);
-  const keyParam = url.searchParams.get('key');
-  if (!keyParam) {
-    return json({ error: 'key required' }, { status: 400 });
-  }
-  const key = decodeURIComponent(keyParam);
-
-  const auth = req.headers.get('authorization');
-  if (!auth || !auth.toLowerCase().startsWith('bearer')) {
-    return json({ error: 'unauthorized' }, { status: 401 });
-
-  }
-
-  // In a real implementation you would remove the key from your store here.
-  // This demo simply acknowledges the request.
-
-  return json({ ok: true });
-
 });

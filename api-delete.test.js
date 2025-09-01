@@ -6,14 +6,16 @@ const { JSDOM } = require('jsdom');
 
 async function setup() {
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-  html = html.replace('<script src="content.js" defer></script>', '');
+  html = html.replace(/<script[^>]*src="shim.js"[^>]*><\/script>\n?/, '')
+             .replace(/<script[^>]*src="[^"']*content.js[^>]*><\/script>\n?/, '');
   const dom = new JSDOM(html, { runScripts: 'dangerously', resources: 'usable', url: 'http://localhost' });
   const { window } = dom;
   await new Promise((resolve) => {
     if (window.document.readyState === 'complete') resolve();
     else window.document.addEventListener('DOMContentLoaded', resolve);
   });
-  window.eval(fs.readFileSync(path.join(__dirname, 'content.js'), 'utf8'))
+  window.eval(fs.readFileSync(path.join(__dirname, 'shim.js'), 'utf8'));
+  window.eval(fs.readFileSync(path.join(__dirname, 'content.js'), 'utf8'));
   window.localStorage.setItem('cmsAnon', 'test');
   window.showError = () => {};
   return window;

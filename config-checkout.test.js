@@ -5,7 +5,9 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 async function loadDomWithConfig(config) {
-  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  html = html.replace(/<script[^>]*src="shim.js"[^>]*><\/script>/, '')
+             .replace(/<script[^>]*src="[^"']*content.js[^>]*><\/script>/, '');
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     resources: 'usable',
@@ -20,7 +22,10 @@ async function loadDomWithConfig(config) {
     if (dom.window.document.readyState === 'complete') resolve();
     else dom.window.document.addEventListener('DOMContentLoaded', resolve);
   });
-  return dom.window;
+  const { window } = dom;
+  window.eval(fs.readFileSync(path.join(__dirname, 'shim.js'), 'utf8'));
+  window.eval(fs.readFileSync(path.join(__dirname, 'content.js'), 'utf8'));
+  return window;
 }
 
 test('checkout defaults to empty strings when CONFIG missing', async () => {
