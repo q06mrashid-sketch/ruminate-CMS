@@ -230,6 +230,21 @@
       if(!res.ok) throw new Error(out.error || `Save failed (${res.status})`);
       return out;
     }
+    async function apiDelete(key){
+      showError('');
+      const anon = getAnon();
+      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+      const res = await fetch(`${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`, {
+        method:'DELETE',
+        headers:{
+          'Authorization': `Bearer ${anon}`,
+          'x-cms-secret': WRITE_SECRET
+        }
+      });
+      const out = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(out.error || `Delete failed (${res.status})`);
+      return out;
+    }
 
     // ---- Hours UI ----
     function hoursKey(dayKey, kind){ return `hours.${dayKey}.${kind}`; }
@@ -293,7 +308,7 @@
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
-        rmBtn.onclick = async ()=>{ try{ await apiUpsert(k, ''); alert('Removed'); await loadAll(); }catch(e){ showError(e.message||'Remove failed'); } };
+        rmBtn.onclick = async ()=>{ try{ await apiDelete(k); alert('Removed'); await loadAll(); }catch(e){ showError(e.message||'Remove failed'); } };
         row.appendChild(rmBtn);
 
         list.appendChild(row);
@@ -467,7 +482,7 @@
               `syrup-on.${prevCat}.${prevKey}`,
               `coffee-on.${prevCat}.${prevKey}`,
             ];
-            for (const p of paths) await apiUpsert(p, '');
+            for (const p of paths) await apiDelete(p);
           }
 
           // Standard fields
@@ -519,16 +534,16 @@
         try {
           for (const cat of ['coffee','not-coffee','pif','specials']) {
             for (const suf of suffixes) {
-              await apiUpsert(`menu.${cat}.${suf}`, '');
-              await apiUpsert(`price.${cat}.${suf}`, '');
-              await apiUpsert(`desc.${cat}.${suf}`, '');
-              await apiUpsert(`image.${cat}.${suf}`, '');
-              await apiUpsert(`image.${cat}.${suf}.name`, '');
-              await apiUpsert(`alt.${cat}.${suf}`, '');
-              await apiUpsert(`extra.${cat}.${suf}`, '');
-              await apiUpsert(`syrups-on.${cat}.${suf}`, '');
-              await apiUpsert(`syrup-on.${cat}.${suf}`, '');
-              await apiUpsert(`coffee-on.${cat}.${suf}`, '');
+              await apiDelete(`menu.${cat}.${suf}`);
+              await apiDelete(`price.${cat}.${suf}`);
+              await apiDelete(`desc.${cat}.${suf}`);
+              await apiDelete(`image.${cat}.${suf}`);
+              await apiDelete(`image.${cat}.${suf}.name`);
+              await apiDelete(`alt.${cat}.${suf}`);
+              await apiDelete(`extra.${cat}.${suf}`);
+              await apiDelete(`syrups-on.${cat}.${suf}`);
+              await apiDelete(`syrup-on.${cat}.${suf}`);
+              await apiDelete(`coffee-on.${cat}.${suf}`);
             }
           }
           tr.parentElement.removeChild(tr);
@@ -604,7 +619,7 @@
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
-        rmBtn.onclick = async () => { try { await apiUpsert(k, ''); alert('Removed'); await loadAll(); } catch(e){ showError(e.message || 'Remove failed'); } };
+        rmBtn.onclick = async () => { try { await apiDelete(k); alert('Removed'); await loadAll(); } catch(e){ showError(e.message || 'Remove failed'); } };
         row.appendChild(rmBtn);
 
         box.appendChild(row);
