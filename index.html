@@ -24,6 +24,9 @@
     .hoursRow label { width:140px; font-weight:600; }
     .hoursRow input { width:130px; padding:8px; }
     .right { display:flex; gap:10px; justify-content:flex-end; }
+    #status { color:#006400; margin:10px 0; opacity:0; transition:opacity 0.3s; }
+    #status.show { opacity:1; }
+    #status:empty { margin:0; }
     #err { display:none; color:#b00020; margin:10px 0; }
     /* Password gate */
     #gate { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#fff; }
@@ -60,7 +63,7 @@
       <button id="setAnon">Set Supabase anon key</button>
       <button id="setFnsUrl">Set Functions URL</button>
     </div>
-
+    <div id="status"></div>
     <div id="err"></div>
 
     <div class="hint">
@@ -187,6 +190,18 @@
 
     function $id(id){ return document.getElementById(id); }
     function showError(msg){ const e=$id('err'); e.textContent=String(msg||''); e.style.display = msg ? 'block' : 'none'; }
+    function showStatus(msg, ms=2000){
+      const s = $id('status');
+      if(!s) return;
+      s.textContent = String(msg || '');
+      if(msg){
+        s.classList.add('show');
+        clearTimeout(showStatus._t);
+        showStatus._t = setTimeout(()=>{ s.classList.remove('show'); s.textContent=''; }, ms);
+      }else{
+        s.classList.remove('show');
+      }
+    }
 
     // ---- Gate handling ----
     function openEditor(){
@@ -269,7 +284,7 @@
         saveBtn.onclick = async ()=>{ try{
           await apiUpsert(hoursKey(key,'open'), openInp.value);
           await apiUpsert(hoursKey(key,'close'), closeInp.value);
-          alert(`${label} saved`);
+          showStatus(`${label} saved`);
         }catch(e){ showError(e.message||'Save failed'); } };
         row.appendChild(saveBtn);
 
@@ -290,7 +305,7 @@
         await apiUpsert(hoursKey('fri','close1'), fClose1.value);
         await apiUpsert(hoursKey('fri','open2'), fOpen2.value);
         await apiUpsert(hoursKey('fri','close2'), fClose2.value);
-        alert('Friday saved');
+        showStatus('Friday saved');
       }catch(e){ showError(e.message||'Save failed'); } };
       fri.appendChild(friSave);
 
@@ -308,7 +323,7 @@
         const inp = document.createElement('input'); inp.type='text'; inp.value=map[k]||''; row.appendChild(inp);
 
         const saveBtn = document.createElement('button'); saveBtn.textContent='Save';
-        saveBtn.onclick = async ()=>{ try{ inp.value ? await apiUpsert(k, inp.value) : await apiDelete(k); alert('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
+        saveBtn.onclick = async ()=>{ try{ inp.value ? await apiUpsert(k, inp.value) : await apiDelete(k); showStatus('Saved'); }catch(e){ showError(e.message||'Save failed'); } };
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
@@ -319,6 +334,7 @@
             await apiDelete(k);
             row.remove();
             await loadAll();
+            showStatus('Removed');
           } catch (e) {
             showError(e.message || 'Remove failed');
             rmBtn.disabled = false; rmBtn.textContent = prevText;
@@ -475,7 +491,7 @@
         const imageNameVal = (imgNameInput.value || '').trim();
         let base64 = '';
 
-        if (!suffix || !nameVal || !categoryVal) { alert('Suffix, item name, and category are required.'); return; }
+        if (!suffix || !nameVal || !categoryVal) { showError('Suffix, item name, and category are required.'); return; }
         if (fileInput.files && fileInput.files[0]) base64 = await readFileAsBase64(fileInput.files[0]);
 
         try {
@@ -524,7 +540,7 @@
           }
           if (cCoffee.cb.checked) await apiUpsert(`coffee-on.${categoryVal}.${suffixFull}`, '1'); else await apiDelete(`coffee-on.${categoryVal}.${suffixFull}`);
 
-          alert('Menu entry saved.');
+          showStatus('Menu entry saved.');
           data.category = categoryVal;
           data.suffix = suffix;
           data.type = typeVal;
@@ -583,6 +599,7 @@
           }
           tr.parentElement.removeChild(tr);
           await loadAll();
+          showStatus('Removed');
         } catch (e) {
           showError(e.message || 'Remove failed');
           removeBtn.disabled = false; removeBtn.textContent = prevText;
@@ -653,7 +670,7 @@
         const inp = document.createElement('input'); inp.type = 'text'; inp.value = map[k] || ''; row.appendChild(inp);
 
         const saveBtn = document.createElement('button'); saveBtn.textContent = 'Save';
-        saveBtn.onclick = async () => { try { await apiUpsert(k, inp.value); alert('Saved'); } catch(e){ showError(e.message || 'Save failed'); } };
+        saveBtn.onclick = async () => { try { await apiUpsert(k, inp.value); showStatus('Saved'); } catch(e){ showError(e.message || 'Save failed'); } };
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
@@ -664,6 +681,7 @@
             await apiDelete(k);
             row.remove();
             await loadAll();
+            showStatus('Removed');
           } catch(e){
             showError(e.message || 'Remove failed');
             rmBtn.disabled = false; rmBtn.textContent = prevText;
@@ -731,23 +749,23 @@
     // ---- Events ----
     $id('enter').addEventListener('click', ()=>{
       const ok = checkPassword($id('pw').value, false);
-      if(ok && !getAnon()) alert('Click “Set Supabase anon key” (top bar) to enable saving.');
+      if(ok && !getAnon()) showStatus('Click “Set Supabase anon key” (top bar) to enable saving.', 4000);
       if(ok) loadAll();
     });
     $id('remember').addEventListener('click', ()=>{
       const ok = checkPassword($id('pw').value, true);
-      if(ok && !getAnon()) alert('Click “Set Supabase anon key” (top bar) to enable saving.');
+      if(ok && !getAnon()) showStatus('Click “Set Supabase anon key” (top bar) to enable saving.', 4000);
       if(ok) loadAll();
     });
 
-    $id('resetAuth').addEventListener('click', ()=>{ clearAuth(); alert('Page password reset. Reload to re-enter.'); location.reload(); });
+    $id('resetAuth').addEventListener('click', ()=>{ clearAuth(); showStatus('Page password reset. Reloading...'); setTimeout(()=>location.reload(), 500); });
     $id('setAnon').addEventListener('click', ()=>{
       const next = prompt('Paste your Supabase ANON key:', getAnon()||'');
-      if(next){ setAnon(next); alert('Anon key saved.'); }
+      if(next){ setAnon(next); showStatus('Anon key saved.'); }
     });
     $id('setFnsUrl').addEventListener('click', ()=>{
       const next = prompt('Supabase Functions URL:', getFnsUrl());
-      if(next){ setFnsUrl(next); alert('Functions URL saved.'); }
+      if(next){ setFnsUrl(next); showStatus('Functions URL saved.'); }
     });
 
     $id('saveHoursAll').addEventListener('click', async ()=>{
@@ -771,7 +789,7 @@
             await apiUpsert(hoursKey('fri','close2'), close2);
           }
         }
-        alert('All hours saved');
+        showStatus('All hours saved');
       }catch(e){ showError(e.message||'Save failed'); }
     });
 
