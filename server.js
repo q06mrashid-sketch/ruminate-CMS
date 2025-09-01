@@ -19,7 +19,10 @@ function writeStore(data) {
 function handleRequest(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-cms-secret');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-cms-secret, apikey, x-client-info'
+  );
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
 
   if (req.method === 'OPTIONS') {

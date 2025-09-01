@@ -91,3 +91,22 @@ test('DELETE /cms-del succeeds for unknown key', async (t) => {
   assert.strictEqual(res.status, 200);
   assert.deepStrictEqual(body, { ok: true });
 });
+
+test('OPTIONS allows apikey and x-client-info headers', async (t) => {
+  fs.rmSync(DB_FILE, { force: true });
+  const server = await startServer();
+  t.after(() => { server.close(); fs.rmSync(DB_FILE, { force: true }); });
+  const port = server.address().port;
+
+  const res = await fetch(`http://localhost:${port}/cms-set`, {
+    method: 'OPTIONS',
+    headers: {
+      'Access-Control-Request-Headers': 'apikey, x-client-info'
+    }
+  });
+
+  assert.strictEqual(res.status, 200);
+  const allow = res.headers.get('access-control-allow-headers');
+  assert.ok(allow.includes('apikey'));
+  assert.ok(allow.includes('x-client-info'));
+});
