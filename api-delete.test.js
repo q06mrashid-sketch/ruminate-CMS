@@ -31,7 +31,7 @@ test('apiDelete propagates 400 errors', async () => {
   let called = false;
   window.fetch = async () => {
     called = true;
-    return { ok: false, status: 400, json: async () => ({ error: 'bad request' }) };
+    return { ok: false, status: 400, text: async () => 'bad request' };
   };
   await assert.rejects(window.apiDelete('bad.key'), /bad request/);
   assert.ok(called);
@@ -57,3 +57,37 @@ test('apiDelete throws descriptive error on network failure', async () => {
     /Network or CORS error while deleting key/
   );
 });
+
+test('apiDelete encodes key parameter', async () => {
+  const window = await setup();
+  let url;
+  window.fetch = async (input) => {
+    url = input;
+    return { ok: true, status: 204, text: async () => '' };
+  };
+  await window.apiDelete('sp ce');
+  assert.ok(url.includes('key=sp%20ce'));
+});
+
+test('apiDelete sends auth headers', async () => {
+  const window = await setup();
+  let opts;
+  window.fetch = async (input, options) => {
+    opts = options;
+    return { ok: true, status: 204, text: async () => '' };
+  };
+  await window.apiDelete('foo');
+  assert.equal(opts.headers['Content-Type'], 'application/json');
+  assert.equal(opts.headers.apikey, 'test');
+  assert.equal(opts.headers.Authorization, 'Bearer test');
+});
+
+test('apiDelete surfaces failures via showError', async () => {
+  const window = await setup();
+  let shown;
+  window.showError = (msg) => { shown = msg; };
+  window.fetch = async () => ({ ok: false, status: 500, text: async () => 'oops' });
+  await assert.rejects(window.apiDelete('foo'), /oops/);
+  assert.equal(shown, 'oops');
+});
+

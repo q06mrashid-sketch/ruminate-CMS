@@ -259,8 +259,12 @@
     }
     async function apiDelete(key){
       showError('');
-      const anon = getAnon();
-      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+      const SUPABASE_ANON_KEY = getAnon();
+      if(!SUPABASE_ANON_KEY){
+        const msg = 'Supabase Anon key not set (click “Set Supabase anon key”).';
+        showError(msg);
+        throw new Error(msg);
+      }
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
       let res;
@@ -268,21 +272,25 @@
         res = await fetch(`${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`, {
           method:'DELETE',
           headers:{
-            'Authorization': `Bearer ${anon}`,
-            'apikey': anon,
-            'x-cms-secret': WRITE_SECRET
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            'x-cms-secret': WRITE_SECRET,
           }
         });
       } catch (err) {
-        throw new Error('Network or CORS error while deleting key.');
+        const msg = 'Network or CORS error while deleting key.';
+        showError(msg);
+        throw new Error(msg);
       }
-      const out = await res.json().catch(()=>({}));
-      // If the key does not exist the backend may respond with 404.
-      // Treat that as success so that optional blank fields do not
-      // abort the save operation.
-      if(!res.ok && res.status !== 404)
-        throw new Error(out.error || `Delete failed (${res.status})`);
-      return out; // success handled by caller
+      if(!res.ok && res.status !== 204){
+        const text = await res.text().catch(()=> '');
+        const msg = text || `Delete failed (${res.status})`;
+        showError(msg);
+        throw new Error(msg);
+      }
+      if(res.status === 204) return; // no body
+      return await res.json().catch(()=>({}));
     }
 
     // ---- Hours UI ----
