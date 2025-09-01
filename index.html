@@ -778,7 +778,7 @@
       if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key” (top bar).'); return false; }
       const url = getFnsUrl();
       if(!url){ showError('Functions URL missing. Click “Set Functions URL” (top bar).'); return false; }
-      try{ await fetch(`${url}/cms-get`, { method:'HEAD', headers:{ 'Authorization': `Bearer ${anon}` }}); }
+      try{ await fetch(`${url}/cms-get`, { method:'GET', headers:{ 'Authorization': `Bearer ${anon}` }}); }
       catch(e){ showError('Supabase Functions URL unreachable. Check the URL and network.'); return false; }
       return true;
     }
