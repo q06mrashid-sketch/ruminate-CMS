@@ -45,3 +45,12 @@ test('apiDelete removes trailing slash from key', async () => {
   const sentKey = new URL(url).searchParams.get('key');
   assert.equal(sentKey, 'foo');
 });
+
+test('apiDelete throws descriptive error on network failure', async () => {
+  const window = await setup();
+  window.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  await assert.rejects(
+    window.apiDelete('foo'),
+    /Network or CORS error while deleting key/
+  );
+});
