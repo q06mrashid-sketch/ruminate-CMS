@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+  // Safe one-time initializers (won't redeclare)
+  globalThis.DEFAULT_FUNCTIONS_URL ??= 'https://eamewialuovzguldcdcf.functions.supabase.co';
+  globalThis.CONFIG ??= {};
+  CONFIG.checkoutUrls ??= { pos: '', portal: '', app: '' };
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Ruminate CMS Editor</title>
@@ -36,14 +42,7 @@
     th, td { border-bottom: 1px dashed var(--line); padding: 6px; vertical-align: middle; }
     th { text-align: left; }
   </style>
-  <script>
-    // Hard defaults so the bundle can read safely
-    window.DEFAULT_FUNCTIONS_URL ??= 'https://eamewialuovzguldcdcf.functions.supabase.co';
-    window.CONFIG = window.CONFIG || {};
-    window.CONFIG.checkoutUrls = window.CONFIG.checkoutUrls || { pos: '', portal: '', app: '' };
-  </script>
   <script src="shim.js"></script>
-  <script src="content.js?v=__BUILD_HASH__" defer></script>
 </head>
 <body>
 
@@ -175,5 +174,6 @@
 
   </div>
 
+  <script src="/ruminate-CMS/content.js?v=__BUILD_HASH__" defer></script>
 </body>
 </html>
