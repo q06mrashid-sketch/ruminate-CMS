@@ -174,7 +174,15 @@
 
   </div>
 
-  <script src="./cms-config.js"></script>
-<script src="./content.js"></script>
+    <script>
+      window.RUMINATE_CMS_CONFIG = {
+        checkoutUrls: {
+          get: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-get",
+          set: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-set",
+          del: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-del"
+        }
+      };
+    </script>
+  <script src="./content.js"></script>
 </body>
 </html>

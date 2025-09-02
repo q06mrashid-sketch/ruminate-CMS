@@ -7,6 +7,7 @@
 
     const checkoutUrls = GLOBALS.checkoutUrls ?? { web: "/checkout" };
     globalThis.checkoutUrls = checkoutUrls;
+    const canDelete = !!checkoutUrls.del;
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
@@ -94,12 +95,13 @@
     }
     async function apiDelete(key){
       showError('');
+      if(!canDelete) return; // endpoint not configured
       const anon = getAnon();
       if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
       let res;
-      const url = `${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`;
+      const url = `${checkoutUrls.del}?key=${encodeURIComponent(key)}`;
       try {
         res = await fetch(url, {
           method: 'DELETE',
@@ -182,24 +184,28 @@
         row.appendChild(saveBtn);
 
         const rmBtn = document.createElement('button'); rmBtn.textContent='Remove';
-        rmBtn.onclick = async () => {
-          const prevText = rmBtn.textContent;
-          rmBtn.disabled = true; rmBtn.textContent = 'Removing...';
-          try {
-            await apiDelete(k);
-            row.remove();
-            showStatus('Removed');
-          } catch (e) {
-            showError(e.message || 'Remove failed');
-            rmBtn.disabled = false; rmBtn.textContent = prevText;
-            return;
-          }
-          try {
-            await loadAll();
-          } catch (e) {
-            showError(e.message || 'Refresh failed');
-          }
-        };
+        if (!canDelete) {
+          rmBtn.disabled = true;
+        } else {
+          rmBtn.onclick = async () => {
+            const prevText = rmBtn.textContent;
+            rmBtn.disabled = true; rmBtn.textContent = 'Removing...';
+            try {
+              await apiDelete(k);
+              row.remove();
+              showStatus('Removed');
+            } catch (e) {
+              showError(e.message || 'Remove failed');
+              rmBtn.disabled = false; rmBtn.textContent = prevText;
+              return;
+            }
+            try {
+              await loadAll();
+            } catch (e) {
+              showError(e.message || 'Refresh failed');
+            }
+          };
+        }
         row.appendChild(rmBtn);
 
         list.appendChild(row);
@@ -417,55 +423,59 @@
       // Remove (clear all categories + flags)
       const removeTd = document.createElement('td');
       const removeBtn = document.createElement('button'); removeBtn.textContent='Remove';
-      removeBtn.onclick = async () => {
-        removeBtn.disabled = true; removeBtn.textContent = 'Removing...';
-        const currSuffix = (suffixInput.value || '').trim();
+      if (!canDelete) {
+        removeBtn.disabled = true;
+      } else {
+        removeBtn.onclick = async () => {
+          removeBtn.disabled = true; removeBtn.textContent = 'Removing...';
+          const currSuffix = (suffixInput.value || '').trim();
 
 
-        // collect base suffixes from original data and current input
-        const bases = new Set();
-        if (data.suffix) bases.add(data.suffix);
-        if (currSuffix) bases.add(currSuffix);
+          // collect base suffixes from original data and current input
+          const bases = new Set();
+          if (data.suffix) bases.add(data.suffix);
+          if (currSuffix) bases.add(currSuffix);
 
-        // if nothing to clear just remove the row locally
-        if (bases.size === 0) { tr.remove(); return; }
+          // if nothing to clear just remove the row locally
+          if (bases.size === 0) { tr.remove(); return; }
 
-        // derive suffix variants: plain and with .drink
-        const suffixes = new Set();
-        for (const b of bases) {
-          suffixes.add(b);
-          suffixes.add(`${b}.drink`);
-        }
+          // derive suffix variants: plain and with .drink
+          const suffixes = new Set();
+          for (const b of bases) {
+            suffixes.add(b);
+            suffixes.add(`${b}.drink`);
+          }
 
-        try {
-          const keys = [];
-          for (const cat of ['coffee','not-coffee','pif','specials'])
-            for (const suf of suffixes)
-              keys.push(
-                `menu.${cat}.${suf}`,
-                `price.${cat}.${suf}`,
-                `desc.${cat}.${suf}`,
-                `image.${cat}.${suf}`,
-                `image.${cat}.${suf}.name`,
-                `alt.${cat}.${suf}`,
-                `extra.${cat}.${suf}`,
-                `syrups-on.${cat}.${suf}`,
-                `syrup-on.${cat}.${suf}`,
-                `coffee-on.${cat}.${suf}`
-              );
+          try {
+            const keys = [];
+            for (const cat of ['coffee','not-coffee','pif','specials'])
+              for (const suf of suffixes)
+                keys.push(
+                  `menu.${cat}.${suf}`,
+                  `price.${cat}.${suf}`,
+                  `desc.${cat}.${suf}`,
+                  `image.${cat}.${suf}`,
+                  `image.${cat}.${suf}.name`,
+                  `alt.${cat}.${suf}`,
+                  `extra.${cat}.${suf}`,
+                  `syrups-on.${cat}.${suf}`,
+                  `syrup-on.${cat}.${suf}`,
+                  `coffee-on.${cat}.${suf}`
+                );
 
-          await Promise.allSettled(keys.map(k => apiDelete(k)));
-        } catch (e) {
-          showError(e.message || 'Remove failed');
-        }
-        tr.remove();
-        showStatus('Removed');
-        try {
-          await loadAll();
-        } catch (e) {
-          showError(e.message || 'Refresh failed');
-        }
-      };
+            await Promise.allSettled(keys.map(k => apiDelete(k)));
+          } catch (e) {
+            showError(e.message || 'Remove failed');
+          }
+          tr.remove();
+          showStatus('Removed');
+          try {
+            await loadAll();
+          } catch (e) {
+            showError(e.message || 'Refresh failed');
+          }
+        };
+      }
       removeTd.appendChild(removeBtn);
       tr.appendChild(removeTd);
 
@@ -534,7 +544,10 @@
         saveBtn.onclick = async () => { try { await apiUpsert(k, inp.value); showStatus('Saved'); } catch(e){ showError(e.message || 'Save failed'); } };
         row.appendChild(saveBtn);
 
-        const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
+      const rmBtn = document.createElement('button'); rmBtn.textContent = 'Remove';
+      if (!canDelete) {
+        rmBtn.disabled = true;
+      } else {
         rmBtn.onclick = async () => {
           const prevText = rmBtn.textContent;
           rmBtn.disabled = true; rmBtn.textContent = 'Removing...';
@@ -553,7 +566,8 @@
             showError(e.message || 'Refresh failed');
           }
         };
-        row.appendChild(rmBtn);
+      }
+      row.appendChild(rmBtn);
 
         box.appendChild(row);
       });
