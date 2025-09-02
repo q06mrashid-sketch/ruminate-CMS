@@ -1,9 +1,9 @@
+// cms-config.js
 window.RUMINATE_CMS_CONFIG = {
+  // whatever else your app reads…
   checkoutUrls: {
-    web: "/ruminate-CMS/checkout",   // or whatever your checkout route is
-    app: "ruminate://checkout"
-  },
-  api: {
-    baseUrl: "https://eamewialuovzguldcdcf.functions.supabase.co"
+    get: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-get",
+    set: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-set",
+    del: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-del"
   }
 };
