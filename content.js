@@ -56,25 +56,34 @@
     if(localStorage.getItem('ruminateAuth')==='true'){ openEditor(); }
 
     // ---- API (shared with everything) ----
-    async function apiGetAll(){
-      showError('');
-      const anon = getAnon();
-      if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
-      const res = await fetch(`${getFnsUrl()}/cms-get`, {
-        headers:{
-          'Authorization': `Bearer ${anon}`,
-          'apikey': anon
-        }
+async function apiGetAll(){
+  showError('');
+  const anon = getAnon();
+  if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+
+  const base = getFnsUrl();
+  // 1) list keys
+  const listRes = await fetch(`${base}/cms-list?like=%25`, {
+    headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
+  });
+  if (!listRes.ok) throw new Error(`LIST failed: ${listRes.status}`);
+  const list = await listRes.json();
+  const keys = Array.isArray(list.keys) ? list.keys : [];
+
+  // 2) fetch values for each key
+  const pairs = await Promise.all(
+    keys.map(async k => {
+      const r = await fetch(`${base}/cms-get?key=${encodeURIComponent(k)}`, {
+        headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
       });
-      if(!res.ok) throw new Error(`GET failed: ${res.status}`);
-      const ct = res.headers.get('content-type') || '';
-      try{
-        if(!ct.includes('application/json')) throw new Error();
-        return await res.json();
-      }catch(err){
-        throw new Error('Unexpected response format');
-      }
-    }
+      if (!r.ok) return [k, '']; // tolerate partial failures
+      const j = await r.json().catch(()=>({}));
+      return [k, (j && typeof j.value !== 'undefined') ? j.value : ''];
+    })
+  );
+
+  return Object.fromEntries(pairs);
+}
     async function apiUpsert(key, value){
       showError('');
       const anon = getAnon();
@@ -627,14 +636,21 @@
 
     // ---- Page load orchestration ----
     async function verifyConfig(){
-      const anon = getAnon();
-      if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key” (top bar).'); return false; }
-      const url = getFnsUrl();
-      if(!url){ showError('Functions URL missing. Click “Set Functions URL” (top bar).'); return false; }
-      try{ await fetch(`${url}/cms-get`, { method:'GET', headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }}); }
-      catch(e){ showError('Supabase Functions URL unreachable. Check the URL and network.'); return false; }
-      return true;
-    }
+  const anon = getAnon();
+  if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key” (top bar).'); return false; }
+  const url = getFnsUrl();
+  if(!url){ showError('Functions URL missing. Click “Set Functions URL” (top bar).'); return false; }
+  try{
+    const res = await fetch(`${url}/cms-list?like=%25`, {
+      headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
+    });
+    if(!res.ok) throw new Error(`LIST failed: ${res.status}`);
+  }catch(e){
+    showError('Supabase Functions URL unreachable. Check the URL and network.');
+    return false;
+  }
+  return true;
+}
 
     async function loadAll(){
       try{
