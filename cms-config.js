@@ -1,5 +1,4 @@
 
-<script>
 window.CMS_CONFIG = (() => {
   const origin        = 'https://q06mrashid-sketch.github.io';
   const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
@@ -56,4 +55,3 @@ window.CMS_CONFIG = (() => {
     disableFallback: true,
   };
 })();
-</script>
