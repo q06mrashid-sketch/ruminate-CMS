@@ -1,9 +1,12 @@
-// cms-config.js
-window.RUMINATE_CMS_CONFIG = {
-  // whatever else your app reads…
+window.CMS_CONFIG = {
+  projectRef: "eamewialuovzguldcdcf",
   checkoutUrls: {
-    get: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-get",
-    set: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-set",
-    del: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-del"
+    prod: "#",
+    dev:  "#"
+  },
+  api: {
+    del: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-del",
+    get: "",
+    set: ""
   }
 };

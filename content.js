@@ -1,5 +1,5 @@
     // ---- Config (can override via localStorage) ----
-    const GLOBALS = globalThis.RUMINATE_CMS_CONFIG ?? {};
+    const GLOBALS = globalThis.CMS_CONFIG ?? {};
     const config = globalThis.CONFIG || {};
     const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || GLOBALS.api?.baseUrl || 'https://eamewialuovzguldcdcf.functions.supabase.co';
     const WRITE_SECRET = "Misterbignose12!";
@@ -7,7 +7,7 @@
 
     const checkoutUrls = GLOBALS.checkoutUrls ?? { web: "/checkout" };
     globalThis.checkoutUrls = checkoutUrls;
-    const canDelete = !!checkoutUrls.del;
+    const canDelete = !!GLOBALS.api?.del;
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
@@ -101,7 +101,7 @@
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
       let res;
-      const url = `${checkoutUrls.del}?key=${encodeURIComponent(key)}`;
+      const url = `${GLOBALS.api.del}?key=${encodeURIComponent(key)}`;
       try {
         res = await fetch(url, {
           method: 'DELETE',
