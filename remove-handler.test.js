@@ -7,6 +7,7 @@ const { JSDOM } = require('jsdom');
 test('remove handler deletes keys and clears row with missing data', async () => {
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   html = html.replace(/<script[^>]*src="shim.js"[^>]*><\/script>\n?/, '')
+             .replace(/<script[^>]*src="\/cms-config.js"[^>]*><\/script>\n?/, '')
              .replace(/<script[^>]*src="[^"']*content.js[^>]*><\/script>\n?/, '');
   const dom = new JSDOM(html, { runScripts: 'dangerously', resources: 'usable', url: 'http://localhost' });
   const { window } = dom;
