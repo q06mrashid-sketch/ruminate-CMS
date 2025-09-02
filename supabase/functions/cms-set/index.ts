@@ -42,7 +42,7 @@ serve(async (req) => {
       });
     }
 
-    const { error } = await db.from("cms_kv")
+    const { error } = await db.from("cms_texts")
       .upsert({ key, value }, { onConflict: "key" });
 
     if (error) {
