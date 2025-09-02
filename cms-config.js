@@ -1,4 +1,4 @@
-<!-- ruminate-CMS/cms-config.js -->
+
 <script>
 window.CMS_CONFIG = (() => {
   const origin        = 'https://q06mrashid-sketch.github.io';
