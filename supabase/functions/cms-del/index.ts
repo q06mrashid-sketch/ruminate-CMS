@@ -27,7 +27,7 @@ serve(async (req) => {
   let deleted = 0;
 
   // try 'cms' then 'cms_kv' (support either table name)
-  for (const table of ["cms","cms_kv"]) {
+  for (const table of ["cms","cms_texts"]) {
     const { error, count } = await supabase
       .from(table)
       .delete()
