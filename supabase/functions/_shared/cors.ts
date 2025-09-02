@@ -1,13 +1,13 @@
-export const ALLOWED_ORIGINS = new Set<string>([
+export const ALLOW = new Set([
   'https://q06mrashid-sketch.github.io',
   'http://localhost:5173',
   'http://localhost:3000',
 ]);
 
 export function corsHeaders(origin?: string) {
-  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://q06mrashid-sketch.github.io';
+  const allow = origin && ALLOW.has(origin) ? origin : 'https://q06mrashid-sketch.github.io';
   return {
-    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Origin': allow,
     'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,7 +15,7 @@ export function corsHeaders(origin?: string) {
   } as const;
 }
 
-export function handleOptions(req: Request) {
+export function preflight(req: Request) {
   if (req.method === 'OPTIONS') {
     const origin = req.headers.get('Origin') ?? undefined;
     return new Response('ok', { status: 200, headers: corsHeaders(origin) });
