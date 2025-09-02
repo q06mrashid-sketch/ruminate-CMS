@@ -1,9 +1,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { handleOptions, json } from '../_shared/cors.ts';
+import { preflight, json } from '../_shared/cors.ts';
 
 serve(async (req) => {
-  const opt = handleOptions(req);
-  if (opt) return opt;
+  // 0) OPTIONS preflight (must be first)
+  const pf = preflight(req);
+  if (pf) return pf;
 
   const origin = req.headers.get('Origin') ?? undefined;
 
@@ -16,6 +17,7 @@ serve(async (req) => {
     const key = url.searchParams.get('key');
     if (!key) return json({ error: 'Missing key' }, { status: 400 }, origin);
 
+    // Auth AFTER preflight
     const auth = req.headers.get('Authorization') ?? '';
     const apiKey = req.headers.get('apikey') ?? '';
     if (!auth.startsWith('Bearer ') || !apiKey) {
@@ -29,8 +31,8 @@ serve(async (req) => {
     }
 
     return json({ ok: true }, {}, origin);
-  } catch (err) {
-    console.error('cms-put error', err);
-    return json({ error: String((err as any)?.message ?? err) }, { status: 500 }, origin);
+  } catch (e) {
+    console.error('cms-put error', e);
+    return json({ error: String((e as any)?.message ?? e) }, { status: 500 }, origin);
   }
 });
