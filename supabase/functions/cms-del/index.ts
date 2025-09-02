@@ -1,33 +1,37 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { preflight, corsHeaders, json } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std/http/server.ts";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "https://q06mrashid-sketch.github.io",
+  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
-  // 0) OPTIONS preflight (must be first)
-  const pf = preflight(req);
-  if (pf) return pf;
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS });
+  }
 
   try {
-    if (req.method !== 'DELETE') {
-      return json({ error: 'Method not allowed' }, { status: 405 });
-    }
-
-    // Auth AFTER preflight
-    const auth = req.headers.get('Authorization') ?? '';
-    const apiKey = req.headers.get('apikey') ?? '';
-    if (!auth.startsWith('Bearer ') || !apiKey) {
-      return json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const url = new URL(req.url);
-    const key = url.searchParams.get('key');
-    if (!key) return json({ error: 'Missing key' }, { status: 400 });
+    const key = url.searchParams.get("key");
+    if (!key) {
+      return new Response(JSON.stringify({ error: "Missing key" }), {
+        status: 400,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
 
-    // TODO: perform the delete in your storage/db here
+    // TODO: perform the delete in your storage/kv/db for `key`
+    // await doDelete(key);
 
-    // 204 with CORS
-    return new Response(null, { status: 204, headers: corsHeaders() });
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
   } catch (e) {
-    console.error('cms-del error', e);
-    return json({ error: String((e as any)?.message ?? e) }, { status: 500 });
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
   }
 });

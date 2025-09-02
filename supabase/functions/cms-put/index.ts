@@ -1,35 +1,59 @@
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { preflight, json } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std/http/server.ts";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "https://q06mrashid-sketch.github.io",
+  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
-  // 0) OPTIONS preflight (must be first)
-  const pf = preflight(req);
-  if (pf) return pf;
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS });
+  }
 
   try {
-    if (req.method !== 'PUT') {
-      return json({ error: 'Method not allowed' }, { status: 405 });
+    if (req.method !== "PUT") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
     }
 
     const url = new URL(req.url);
-    const key = url.searchParams.get('key');
-    if (!key) return json({ error: 'Missing key' }, { status: 400 });
+    const key = url.searchParams.get("key");
+    if (!key) {
+      return new Response(JSON.stringify({ error: "Missing key" }), {
+        status: 400,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
 
-    // Auth AFTER preflight
-    const auth = req.headers.get('Authorization') ?? '';
-    const apiKey = req.headers.get('apikey') ?? '';
-    if (!auth.startsWith('Bearer ') || !apiKey) {
-      return json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = req.headers.get("Authorization") ?? "";
+    const apiKey = req.headers.get("apikey") ?? "";
+    if (!auth.startsWith("Bearer ") || !apiKey) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
     }
 
     try {
       await req.json();
     } catch {
-      return json({ error: 'invalid json' }, { status: 400 });
+      return new Response(JSON.stringify({ error: "invalid json" }), {
+        status: 400,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
     }
-    return json({ ok: true });
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
   } catch (e) {
-    console.error('cms-put error', e);
-    return json({ error: String((e as any)?.message ?? e) }, { status: 500 });
+    return new Response(JSON.stringify({ error: String(e) }), {
+      status: 500,
+      headers: { ...CORS, "Content-Type": "application/json" },
+    });
   }
 });

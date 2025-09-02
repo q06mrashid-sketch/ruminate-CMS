@@ -1,11 +1,12 @@
     // ---- Config (can override via localStorage) ----
+    const GLOBALS = globalThis.RUMINATE_CMS_CONFIG ?? {};
     const config = globalThis.CONFIG || {};
-    const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || 'https://eamewialuovzguldcdcf.functions.supabase.co';
+    const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || GLOBALS.api?.baseUrl || 'https://eamewialuovzguldcdcf.functions.supabase.co';
     const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
-    const { pos, portal, app } = config.checkoutUrls || { pos: '', portal: '', app: '' };
-    globalThis.checkout = { pos, portal, app };
+    const checkoutUrls = GLOBALS.checkoutUrls ?? { web: "/checkout" };
+    globalThis.checkoutUrls = checkoutUrls;
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
