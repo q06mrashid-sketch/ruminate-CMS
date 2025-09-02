@@ -1,9 +1,12 @@
-window.RUMINATE_CMS_CONFIG = {
+window.CMS_CONFIG = {
+  projectRef: "eamewialuovzguldcdcf",
   checkoutUrls: {
-    web: "/checkout",
-    app: "ruminate://checkout"
+    prod: "#",
+    dev:  "#"
   },
   api: {
-    baseUrl: "https://eamewialuovzguldcdcf.functions.supabase.co"
+    del: "https://eamewialuovzguldcdcf.functions.supabase.co/cms-del",
+    get: "",
+    set: ""
   }
 };
