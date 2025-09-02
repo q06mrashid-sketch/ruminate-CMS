@@ -1,11 +1,10 @@
     // ---- Config (can override via localStorage) ----
-    const DEFAULT_FUNCTIONS_URL = globalThis.DEFAULT_FUNCTIONS_URL || 'https://eamewialuovzguldcdcf.functions.supabase.co';
+    const config = globalThis.CONFIG || {};
+    const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || 'https://eamewialuovzguldcdcf.functions.supabase.co';
     const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
-    // Safe CONFIG defaults
-    const config = (globalThis.CONFIG ?? {});
-    const { pos, portal, app } = (config.checkoutUrls ?? { pos: '', portal: '', app: '' });
+    const { pos, portal, app } = config.checkoutUrls || { pos: '', portal: '', app: '' };
     globalThis.checkout = { pos, portal, app };
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
