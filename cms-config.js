@@ -1,30 +1,53 @@
-// ruminate-CMS/cms-config.js
-(() => {
-  const origin = 'https://q06mrashid-sketch.github.io';
+<!-- ruminate-CMS/cms-config.js -->
+<script>
+window.CMS_CONFIG = (() => {
+  const origin        = 'https://q06mrashid-sketch.github.io';
   const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
 
-  const checkoutUrls = {
-    live: 'https://example.com/checkout',
-    test: 'https://example.com/checkout-test',
+  // tiny HTTP helpers
+  async function getJSON(url, opts={}) {
+    const res = await fetch(url, { ...opts, headers: { ...(opts.headers||{}), Origin: origin } });
+    if (!res.ok) throw new Error(`${opts.method||'GET'} ${url} → ${res.status}`);
+    return res.json();
+  }
+  const http = {
+    get:  (url)        => getJSON(url),
+    post: (url, body)  => getJSON(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }),
+    del:  (url)        => getJSON(url, { method:'DELETE' }),
   };
 
-  // handy builders (optional; some tooling might use these)
+  // URL builders (internal)
   const endpoints = {
+    listUrl: (like = '%') => `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
     getUrl:  (key)        => `${functionsBase}/cms-get?key=${encodeURIComponent(key)}`,
     setUrl:  ()           => `${functionsBase}/cms-set`,
     delUrl:  (key)        => `${functionsBase}/cms-del?key=${encodeURIComponent(key)}`,
-    listUrl: (like = '%') => `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
   };
 
-  // IMPORTANT: content.js expects STRING endpoints (caller appends ?key= / ?like=)
+  // REAL API calls (this is what content.js expects)
   const api = {
-    get:  `${functionsBase}/cms-get`,
-    set:  `${functionsBase}/cms-set`,
-    del:  `${functionsBase}/cms-del`,
-    list: `${functionsBase}/cms-list`,
+    async list(like = '%') {
+      const j = await http.get(endpoints.listUrl(like));
+      return Array.isArray(j?.keys) ? j.keys : [];
+    },
+    async get(key) {
+      const j = await http.get(endpoints.getUrl(key));
+      return j?.value ?? null;
+    },
+    async set(key, value) {
+      const j = await http.post(endpoints.setUrl(), { key, value });
+      return !!j?.ok;
+    },
+    async del(key) {
+      const j = await http.del(endpoints.delUrl(key));
+      return !!j?.ok;
+    },
   };
 
-  const cfg = {
+  // stub so content.js doesn’t blow up
+  const checkoutUrls = { live: '#', test: '#' };
+
+  return {
     origin,
     functionsBase,
     checkoutUrls,
@@ -32,8 +55,5 @@
     api,
     disableFallback: true,
   };
-
-  // expose under both names
-  window.CMS_CONFIG = cfg;
-  window.CONFIG = cfg;
 })();
+</script>
