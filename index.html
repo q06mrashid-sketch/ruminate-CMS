@@ -13,6 +13,56 @@
 <script defer src="./cms-config.js"></script>
 <script defer src="./content.js"></script>
   <script>
+  // minimal helpers that your bundle already uses
+  function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || 'https://eamewialuovzguldcdcf.functions.supabase.co'; }
+  function getAnon(){ return localStorage.getItem('cmsAnon') || ''; }
+  function showError(m){ const e=document.getElementById('err'); if(e){ e.textContent=String(m||''); e.style.display=m?'block':'none'; } }
+  function showStatus(m){ const s=document.getElementById('status'); if(s){ s.textContent=String(m||''); s.classList.add('show'); setTimeout(()=>{ s.classList.remove('show'); s.textContent=''; },2000);} }
+
+  // 1) stop pinging /cms-get with no key — use /cms-list instead
+  window.verifyConfig = async function verifyConfig(){
+    const anon = getAnon();
+    const url  = getFnsUrl();
+    if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key”.'); return false; }
+    if(!url){  showError('Functions URL missing. Click “Set Functions URL”.'); return false; }
+    try{
+      const res = await fetch(`${url}/cms-list?like=%25`, {
+        headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
+      });
+      return res.ok;
+    }catch(_){
+      showError('Supabase Functions URL unreachable. Check the URL and network.');
+      return false;
+    }
+  };
+
+  // 2) provide a safe "get everything" that the UI can call
+  window.apiGetAll = async function apiGetAll(){
+    const anon = getAnon();
+    if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+    const base = getFnsUrl();
+
+    // list keys
+    const listRes = await fetch(`${base}/cms-list?like=%25`, {
+      headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
+    });
+    if (!listRes.ok) throw new Error(`LIST failed: ${listRes.status}`);
+    const { keys = [] } = await listRes.json();
+
+    // fetch each key’s value
+    const pairs = await Promise.all(keys.map(async k => {
+      const r = await fetch(`${base}/cms-get?key=${encodeURIComponent(k)}`, {
+        headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
+      });
+      if (!r.ok) return [k, '']; // tolerate misses
+      const j = await r.json().catch(()=>({}));
+      return [k, (j && typeof j.value !== 'undefined') ? j.value : ''];
+    }));
+
+    return Object.fromEntries(pairs);
+  };
+</script>
+  <script>
   // Safe one-time initializers (won't redeclare)
   globalThis.CONFIG ??= {};
   CONFIG.DEFAULT_FUNCTIONS_URL ??= 'https://eamewialuovzguldcdcf.functions.supabase.co';
