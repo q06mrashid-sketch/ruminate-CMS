@@ -3,40 +3,37 @@
   const origin = 'https://q06mrashid-sketch.github.io';
   const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
 
-  // content.js expects STRINGS here, not functions
-  const endpoints = {
-    get:  `${functionsBase}/cms-get`,
-    set:  `${functionsBase}/cms-set`,
-    del:  `${functionsBase}/cms-del`,
-    list: `${functionsBase}/cms-list`,
+  // what content.js reads for checkout deep-links; fill in later if you have real ones
+  const checkoutUrls = {
+    live: 'https://example.com/checkout',
+    test: 'https://example.com/checkout-test',
   };
 
-  const getJSON = (url) => fetch(url, { method: 'GET' }).then(r => r.json());
-  const postJSON = (url, body) =>
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(r => r.json());
-  const deleteJSON = (url) =>
-    fetch(url, { method: 'DELETE' }).then(r => r.json());
+  // URL BUILDERS (not network calls)
+  const endpoints = {
+    getUrl:  (key)       => `${functionsBase}/cms-get?key=${encodeURIComponent(key)}`,
+    setUrl:  ()          => `${functionsBase}/cms-set`,
+    delUrl:  (key)       => `${functionsBase}/cms-del?key=${encodeURIComponent(key)}`,
+    listUrl: (like = '%')=> `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
+  };
 
+  // Back-compat: content.js calls api.* expecting string URLs
   const api = {
-    async get(key)        { const j = await getJSON(`${endpoints.get}?key=${encodeURIComponent(key)}`);   return j?.value ?? null; },
-    async set(key, value) { const j = await postJSON(endpoints.set, { key, value });                      return !!j?.ok; },
-    async del(key)        { const j = await deleteJSON(`${endpoints.del}?key=${encodeURIComponent(key)}`);return !!j?.ok; },
-    async list(like='%')  { const j = await getJSON(`${endpoints.list}?like=${encodeURIComponent(like)}`);return Array.isArray(j?.keys) ? j.keys : []; },
+    get:  endpoints.getUrl,
+    set:  endpoints.setUrl,
+    del:  endpoints.delUrl,
+    list: endpoints.listUrl,
   };
 
   window.CMS_CONFIG = {
     origin,
     functionsBase,
-    checkoutUrls: {
-      live: 'https://example.com/checkout',
-      test: 'https://example.com/checkout-test',
-    },
+    checkoutUrls,
     endpoints,
     api,
-    disableFallback: true,
+    disableFallback: true, // stop using any baked-in seed/fallback
   };
 
-  // Safety alias if older code reads `window.CONFIG` instead of `CMS_CONFIG`
+  // safety alias in case older code reads window.CONFIG
   window.CONFIG = window.CMS_CONFIG;
 })();
