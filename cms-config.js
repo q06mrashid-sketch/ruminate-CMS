@@ -3,37 +3,37 @@
   const origin = 'https://q06mrashid-sketch.github.io';
   const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
 
-  // what content.js reads for checkout deep-links; fill in later if you have real ones
   const checkoutUrls = {
     live: 'https://example.com/checkout',
     test: 'https://example.com/checkout-test',
   };
 
-  // URL BUILDERS (not network calls)
+  // handy builders (optional; some tooling might use these)
   const endpoints = {
-    getUrl:  (key)       => `${functionsBase}/cms-get?key=${encodeURIComponent(key)}`,
-    setUrl:  ()          => `${functionsBase}/cms-set`,
-    delUrl:  (key)       => `${functionsBase}/cms-del?key=${encodeURIComponent(key)}`,
-    listUrl: (like = '%')=> `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
+    getUrl:  (key)        => `${functionsBase}/cms-get?key=${encodeURIComponent(key)}`,
+    setUrl:  ()           => `${functionsBase}/cms-set`,
+    delUrl:  (key)        => `${functionsBase}/cms-del?key=${encodeURIComponent(key)}`,
+    listUrl: (like = '%') => `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
   };
 
-  // Back-compat: content.js calls api.* expecting string URLs
+  // IMPORTANT: content.js expects STRING endpoints (caller appends ?key= / ?like=)
   const api = {
-    get:  endpoints.getUrl,
-    set:  endpoints.setUrl,
-    del:  endpoints.delUrl,
-    list: endpoints.listUrl,
+    get:  `${functionsBase}/cms-get`,
+    set:  `${functionsBase}/cms-set`,
+    del:  `${functionsBase}/cms-del`,
+    list: `${functionsBase}/cms-list`,
   };
 
-  window.CMS_CONFIG = {
+  const cfg = {
     origin,
     functionsBase,
     checkoutUrls,
     endpoints,
     api,
-    disableFallback: true, // stop using any baked-in seed/fallback
+    disableFallback: true,
   };
 
-  // safety alias in case older code reads window.CONFIG
-  window.CONFIG = window.CMS_CONFIG;
+  // expose under both names
+  window.CMS_CONFIG = cfg;
+  window.CONFIG = cfg;
 })();
