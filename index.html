@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-  // Hard guard both namespaces that the bundle might touch
-  window.CONFIG = window.CONFIG || {};
-  window.CONFIG.checkoutUrls = window.CONFIG.checkoutUrls || { live:'#', test:'#' };
+  <!-- put this at the very top of <head>, BEFORE content.js -->
+<script>
+  // Minimal shims so the bundle never explodes
+  window.CONFIG ??= {};
+  window.CONFIG.checkoutUrls ??= { live:'#', test:'#' };
 
-  window.CMS_CONFIG = window.CMS_CONFIG || {};
-  window.CMS_CONFIG.checkoutUrls = window.CMS_CONFIG.checkoutUrls || { web:'/checkout' };
+  window.CMS_CONFIG ??= {};
+  window.CMS_CONFIG.checkoutUrls ??= { web:'/checkout' };
 </script>
 
 <script defer src="./cms-config.js"></script>
