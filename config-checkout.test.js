@@ -8,6 +8,7 @@ async function loadDomWithConfig(config) {
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   html = html.replace(/<script[^>]*src="shim.js"[^>]*><\/script>/, '')
              .replace(/<script[^>]*src="\/cms-config.js"[^>]*><\/script>/, '')
+             .replace(/<script>\s*window\.RUMINATE_CMS_CONFIG[\s\S]*?<\/script>\n?/, '')
              .replace(/<script[^>]*src="[^"']*content.js[^>]*><\/script>/, '');
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',

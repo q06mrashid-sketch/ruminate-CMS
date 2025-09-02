@@ -8,6 +8,7 @@ async function setup() {
   let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   html = html.replace(/<script[^>]*src="shim.js"[^>]*><\/script>\n?/, '')
              .replace(/<script[^>]*src="\/cms-config.js"[^>]*><\/script>\n?/, '')
+             .replace(/<script>\s*window\.RUMINATE_CMS_CONFIG[\s\S]*?<\/script>\n?/, '')
              .replace(/<script[^>]*src="[^"']*content.js[^>]*><\/script>\n?/, '');
   const dom = new JSDOM(html, { runScripts: 'dangerously', resources: 'usable', url: 'http://localhost' });
   const { window } = dom;
@@ -15,6 +16,7 @@ async function setup() {
     if (window.document.readyState === 'complete') resolve();
     else window.document.addEventListener('DOMContentLoaded', resolve);
   });
+  window.RUMINATE_CMS_CONFIG = { checkoutUrls: { del: 'https://example.com/cms-del' } };
   window.eval(fs.readFileSync(path.join(__dirname, 'shim.js'), 'utf8'));
   window.eval(fs.readFileSync(path.join(__dirname, 'content.js'), 'utf8'));
   window.localStorage.setItem('cmsAnon', 'test');
