@@ -11,10 +11,13 @@
   window.CMS_CONFIG.checkoutUrls ??= { web:'/checkout' };
 </script>
 
-<!-- 2) Your bundle -->
+<!-- 2) Load CMS configuration -->
+<script defer src="cms-config.js"></script>
+
+<!-- 3) Your bundle -->
 <script defer src="./content.js"></script>
 
-<!-- 3) Single consolidated helpers + API surface -->
+<!-- 4) Single consolidated helpers + API surface -->
 <script>
   // ---- Helpers ----
   function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || 'https://eamewialuovzguldcdcf.functions.supabase.co'; }
