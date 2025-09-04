@@ -10,7 +10,7 @@ export function corsFor(req: Request) {
     "Vary": "Origin",
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-requested-with, x-cms-secret",
+      "authorization, x-client-info, apikey, content-type, x-requested-with",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -20,7 +20,7 @@ export function corsHeaders() {
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
   } as const;
 }
 

@@ -120,7 +120,7 @@ test('OPTIONS /cms-del returns required CORS headers', async (t) => {
   const res = await fetch(`http://localhost:${port}/cms-del`, {
     method: 'OPTIONS',
     headers: {
-      'Access-Control-Request-Headers': 'authorization, apikey, x-cms-secret, content-type, x-client-info',
+      'Access-Control-Request-Headers': 'authorization, apikey, content-type, x-client-info',
       'Access-Control-Request-Method': 'DELETE'
     }
   });
@@ -133,7 +133,7 @@ test('OPTIONS /cms-del returns required CORS headers', async (t) => {
   );
   assert.strictEqual(
     res.headers.get('access-control-allow-headers'),
-    'authorization, apikey, x-cms-secret, content-type, x-client-info'
+    'authorization, apikey, content-type, x-client-info'
   );
 });
 
@@ -156,6 +156,6 @@ test('DELETE /cms-del returns required CORS headers', async (t) => {
   );
   assert.strictEqual(
     res.headers.get('access-control-allow-headers'),
-    'authorization, apikey, x-cms-secret, content-type, x-client-info'
+    'authorization, apikey, content-type, x-client-info'
   );
 });

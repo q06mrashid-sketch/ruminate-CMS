@@ -21,7 +21,7 @@ function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'authorization, apikey, x-cms-secret, content-type, x-client-info'
+    'authorization, apikey, content-type, x-client-info'
   );
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
 

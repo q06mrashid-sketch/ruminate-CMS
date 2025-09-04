@@ -2,9 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "*";
 const CORS = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Vary": "Origin",
   "Access-Control-Allow-Methods": "GET,OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
@@ -31,21 +30,15 @@ serve(async (req) => {
     });
   }
 
-  async function grab(table: string) {
-    const { data, error } = await db.from(table)
-      .select("value").eq("key", key).limit(1).maybeSingle();
-    if (error) {
-      if (/relation .* does not exist/i.test(error.message)) return undefined;
-      throw error;
-    }
-    return data?.value;
-  }
-
   try {
-    const value =
-      (await grab("cms_texts")) ??
-      (await grab("cms_kv")) ??
-      (await grab("cms"));
+    const { data, error } = await db
+      .from("cms_texts")
+      .select("value")
+      .eq("key", key)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    const value = data?.value;
 
     return new Response(JSON.stringify({ key, value: value ?? null }), {
       status: 200, headers: { ...CORS, "Content-Type": "application/json" },
