@@ -1,21 +1,38 @@
-
 window.CMS_CONFIG = (() => {
-  const origin        = globalThis.location?.origin || '';
-  const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
+  // allow runtime overrides from localStorage
+  const LS = {
+    fns: () => localStorage.getItem('cmsFunctionsUrl'),
+    anon: () => localStorage.getItem('cmsAnon'),
+    secret: () => localStorage.getItem('cmsWriteSecret'), // optional
+  };
 
-  // tiny HTTP helpers
-  async function getJSON(url, opts={}) {
-    const res = await fetch(url, { ...opts, headers: { ...(opts.headers||{}) } });
-    if (!res.ok) throw new Error(`${opts.method||'GET'} ${url} → ${res.status}`);
+  const origin = globalThis.location?.origin || '';
+  const functionsBase = LS.fns() || 'https://eamewialuovzguldcdcf.functions.supabase.co';
+
+  // ---- default headers (Authorization + apikey, optional secret) ----
+  function defaultHeaders(extra = {}) {
+    const anon = LS.anon() || '';
+    const base = {
+      ...(anon ? { Authorization: `Bearer ${anon}`, apikey: anon } : {}),
+      ...extra,
+    };
+    return base;
+  }
+
+  // tiny HTTP helpers (always merge default headers)
+  async function getJSON(url, opts = {}) {
+    const headers = { ...(opts.headers || {}), ...defaultHeaders() };
+    const res = await fetch(url, { ...opts, headers });
+    if (!res.ok) throw new Error(`${opts.method || 'GET'} ${url} → ${res.status}`);
     return res.json();
   }
   const http = {
-    get:  (url)        => getJSON(url),
-    post: (url, body)  => getJSON(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }),
-    del:  (url)        => getJSON(url, { method:'DELETE' }),
+    get:  (url, headers)              => getJSON(url, { headers }),
+    post: (url, body, headers)        => getJSON(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(headers||{}) }, body: JSON.stringify(body) }),
+    del:  (url, headers)              => getJSON(url, { method: 'DELETE', headers }),
   };
 
-  // URL builders (internal)
+  // URL builders
   const endpoints = {
     listUrl: (like = '%') => `${functionsBase}/cms-list?like=${encodeURIComponent(like)}`,
     getUrl:  (key)        => `${functionsBase}/cms-get?key=${encodeURIComponent(key)}`,
@@ -23,7 +40,7 @@ window.CMS_CONFIG = (() => {
     delUrl:  (key)        => `${functionsBase}/cms-del?key=${encodeURIComponent(key)}`,
   };
 
-  // REAL API calls (this is what content.js expects)
+  // Real API calls
   const api = {
     async list(like = '%') {
       const j = await http.get(endpoints.listUrl(like));
@@ -34,7 +51,12 @@ window.CMS_CONFIG = (() => {
       return j?.value ?? null;
     },
     async set(key, value) {
-      const j = await http.post(endpoints.setUrl(), { key, value });
+      const secret = LS.secret() || (window.CONFIG && window.CONFIG.writeSecret) || undefined;
+      const j = await http.post(
+        endpoints.setUrl(),
+        { key, value },
+        secret ? { 'x-cms-secret': secret } : undefined
+      );
       return !!j?.ok;
     },
     async del(key) {
@@ -43,7 +65,7 @@ window.CMS_CONFIG = (() => {
     },
   };
 
-  // stub so content.js doesn’t blow up
+  // stub so content.js won’t crash on checkoutUrls
   const checkoutUrls = { live: '#', test: '#' };
 
   return {
@@ -52,6 +74,7 @@ window.CMS_CONFIG = (() => {
     checkoutUrls,
     endpoints,
     api,
-    disableFallback: true,
+    // let the app fall back if functions are down
+    disableFallback: false,
   };
 })();
