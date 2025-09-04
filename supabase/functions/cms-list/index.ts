@@ -2,9 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "*";
 const CORS = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Vary": "Origin",
   "Access-Control-Allow-Methods": "GET,OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
@@ -25,25 +24,13 @@ serve(async (req) => {
 
   try {
     const like = new URL(req.url).searchParams.get("like") ?? "%";
-    const keys: string[] = [];
-
-    async function pull(table: string): Promise<boolean> {
-      const { data, error } = await db
-        .from(table)
-        .select("key")
-        .ilike("key", like)
-        .order("key", { ascending: true });
-
-      if (error) {
-        if (/relation .* does not exist/i.test(error.message)) return false; // table doesn't exist, try next
-        throw error;
-      }
-      (data ?? []).forEach((r: any) => keys.push(r.key));
-      return true;
-    }
-
-    // Prefer cms_texts, then fallback to cms_kv, then legacy "cms"
-    await pull("cms_texts") || await pull("cms_kv") || await pull("cms");
+    const { data, error } = await db
+      .from("cms_texts")
+      .select("key")
+      .ilike("key", like)
+      .order("key", { ascending: true });
+    if (error) throw error;
+    const keys = (data ?? []).map((r: any) => r.key);
 
     return new Response(JSON.stringify({ count: keys.length, keys }), {
       status: 200, headers: { ...CORS, "Content-Type": "application/json" },

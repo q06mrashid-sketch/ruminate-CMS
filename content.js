@@ -2,7 +2,6 @@
     const GLOBALS = globalThis.CMS_CONFIG ?? {};
     const config = globalThis.CONFIG || {};
     const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || GLOBALS.api?.baseUrl || 'https://eamewialuovzguldcdcf.functions.supabase.co';
-    const WRITE_SECRET = "Misterbignose12!";
     const VIEW_PASSWORD = "Misterbignose12!";
 
     const checkoutUrls = GLOBALS.checkoutUrls ?? { web: "/checkout" };
@@ -93,8 +92,7 @@ async function apiGetAll(){
         headers:{
           'Authorization': `Bearer ${anon}`,
           'apikey': anon,
-          'content-type':'application/json',
-          'x-cms-secret': WRITE_SECRET
+          'content-type':'application/json'
         },
         body: JSON.stringify({ key, value })
       });

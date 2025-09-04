@@ -2,9 +2,8 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "*";
 const CORS = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Vary": "Origin",
   "Access-Control-Allow-Methods": "DELETE,OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
@@ -31,20 +30,15 @@ serve(async (req) => {
     });
   }
 
-  let deleted = 0;
-  async function nuke(table: string): Promise<boolean> {
-    const { error, count } = await db.from(table)
-      .delete().eq("key", key).select("key", { count: "exact" });
-    if (error) {
-      if (/relation .* does not exist/i.test(error.message)) return false;
-      throw error;
-    }
-    deleted += count ?? 0;
-    return true;
-  }
-
   try {
-    await nuke("cms_texts") || await nuke("cms_kv") || await nuke("cms");
+    const { error, count } = await db
+      .from("cms_texts")
+      .delete()
+      .eq("key", key)
+      .select("key", { count: "exact" });
+    if (error) throw error;
+    const deleted = count ?? 0;
+
     return new Response(JSON.stringify({ ok: true, key, deleted }), {
       status: 200, headers: { ...CORS, "Content-Type": "application/json" },
     });

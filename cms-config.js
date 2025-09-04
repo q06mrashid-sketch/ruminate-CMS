@@ -3,13 +3,12 @@ window.CMS_CONFIG = (() => {
   const LS = {
     fns: () => localStorage.getItem('cmsFunctionsUrl'),
     anon: () => localStorage.getItem('cmsAnon'),
-    secret: () => localStorage.getItem('cmsWriteSecret'), // optional
   };
 
   const origin = globalThis.location?.origin || '';
   const functionsBase = LS.fns() || 'https://eamewialuovzguldcdcf.functions.supabase.co';
 
-  // ---- default headers (Authorization + apikey, optional secret) ----
+  // ---- default headers (Authorization + apikey) ----
   function defaultHeaders(extra = {}) {
     const anon = LS.anon() || '';
     const base = {
@@ -51,11 +50,9 @@ window.CMS_CONFIG = (() => {
       return j?.value ?? null;
     },
     async set(key, value) {
-      const secret = LS.secret() || (window.CONFIG && window.CONFIG.writeSecret) || undefined;
       const j = await http.post(
         endpoints.setUrl(),
-        { key, value },
-        secret ? { 'x-cms-secret': secret } : undefined
+        { key, value }
       );
       return !!j?.ok;
     },
