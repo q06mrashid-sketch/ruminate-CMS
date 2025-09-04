@@ -1,26 +1,20 @@
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
+const defaultOrigin = "https://q06mrashid-sketch.github.io";
+export const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? defaultOrigin;
 
 // supabase/functions/_shared/cors.ts
-export function corsFor(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowed = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").map(s=>s.trim()).filter(Boolean);
-  const allow = allowed.length === 0 || allowed.includes(origin) ? origin : allowed[0] || "*";
-  return {
-    "Access-Control-Allow-Origin": allow,
-    "Vary": "Origin",
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-requested-with",
-    "Access-Control-Max-Age": "86400",
-  };
-}
+// simple CORS helpers that default to the ALLOWED_ORIGIN env var or the
+// hard-coded fallback above.  We intentionally avoid trying to restrict
+// origins more tightly here so that both the CMS editor and the mobile app
+// can call the edge functions without errors.
 
 export function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Vary': 'Origin',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    Vary: "Origin",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-requested-with",
+    "Access-Control-Max-Age": "86400",
   } as const;
 }
 
