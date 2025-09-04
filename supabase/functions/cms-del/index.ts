@@ -1,14 +1,7 @@
 // supabase/functions/cms-del/index.ts
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Vary": "Origin",
-  "Access-Control-Allow-Methods": "DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
-  "Access-Control-Max-Age": "86400",
-};
+import { preflight, json } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY =
@@ -19,32 +12,28 @@ const SERVICE_KEY =
 const db = createClient(SUPABASE_URL, SERVICE_KEY);
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: CORS });
-  if (req.method !== "DELETE") return new Response("Method Not Allowed", { status: 405, headers: CORS });
+  const pf = preflight(req);
+  if (pf) return pf;
+  if (req.method !== "DELETE") return json({ error: "Method Not Allowed" }, { status: 405 });
 
   const url = new URL(req.url);
   const key = url.searchParams.get("key");
   if (!key) {
-    return new Response(JSON.stringify({ error: "Missing key" }), {
-      status: 400, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ error: "Missing key" }, { status: 400 });
   }
 
   try {
-    const { error, count } = await db
-      .from("cms_texts")
-      .delete()
-      .eq("key", key)
-      .select("key", { count: "exact" });
-    if (error) throw error;
-    const deleted = count ?? 0;
-
-    return new Response(JSON.stringify({ ok: true, key, deleted }), {
-      status: 200, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    let deleted = 0;
+    for (const table of ["cms_texts", "cms_kv", "cms"]) {
+      const { error, count } = await db
+        .from(table)
+        .delete()
+        .eq("key", key)
+        .select("key", { count: "exact" });
+      if (!error) deleted += count ?? 0;
+    }
+    return json({ ok: true, key, deleted });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return json({ error: String(e) }, { status: 500 });
   }
 });

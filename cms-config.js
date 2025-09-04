@@ -72,6 +72,6 @@ window.CMS_CONFIG = (() => {
     endpoints,
     api,
     // let the app fall back if functions are down
-    disableFallback: false,
+    disableFallback: true,
   };
 })();
