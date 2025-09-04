@@ -1,6 +1,9 @@
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
+
 export function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin': 'https://q06mrashid-sketch.github.io',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   } as const;
