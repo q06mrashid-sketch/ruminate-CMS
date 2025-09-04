@@ -1,11 +1,11 @@
 
 window.CMS_CONFIG = (() => {
-  const origin        = 'https://q06mrashid-sketch.github.io';
+  const origin        = globalThis.location?.origin || '';
   const functionsBase = 'https://eamewialuovzguldcdcf.functions.supabase.co';
 
   // tiny HTTP helpers
   async function getJSON(url, opts={}) {
-    const res = await fetch(url, { ...opts, headers: { ...(opts.headers||{}), Origin: origin } });
+    const res = await fetch(url, { ...opts, headers: { ...(opts.headers||{}) } });
     if (!res.ok) throw new Error(`${opts.method||'GET'} ${url} → ${res.status}`);
     return res.json();
   }
