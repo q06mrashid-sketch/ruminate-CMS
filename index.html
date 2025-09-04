@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <!-- put this at the very top of <head>, BEFORE content.js -->
+<!-- 1) Shim: must come BEFORE content.js -->
 <script>
-  // Minimal shims so the bundle never explodes
   window.CONFIG ??= {};
   window.CONFIG.checkoutUrls ??= { live:'#', test:'#' };
 
@@ -11,17 +11,19 @@
   window.CMS_CONFIG.checkoutUrls ??= { web:'/checkout' };
 </script>
 
-<script defer src="./cms-config.js"></script>
+<!-- 2) Your bundle -->
 <script defer src="./content.js"></script>
-  <script>
-  // minimal helpers that your bundle already uses
+
+<!-- 3) Single consolidated helpers + API surface -->
+<script>
+  // ---- Helpers ----
   function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || 'https://eamewialuovzguldcdcf.functions.supabase.co'; }
   function getAnon(){ return localStorage.getItem('cmsAnon') || ''; }
   function showError(m){ const e=document.getElementById('err'); if(e){ e.textContent=String(m||''); e.style.display=m?'block':'none'; } }
   function showStatus(m){ const s=document.getElementById('status'); if(s){ s.textContent=String(m||''); s.classList.add('show'); setTimeout(()=>{ s.classList.remove('show'); s.textContent=''; },2000);} }
 
-  // 1) stop pinging /cms-get with no key — use /cms-list instead
-  window.verifyConfig = async function verifyConfig(){
+  // ---- Verify config (uses /cms-list) ----
+  async function verifyConfig(){
     const anon = getAnon();
     const url  = getFnsUrl();
     if(!anon){ showError('Supabase Anon key missing. Click “Set Supabase anon key”.'); return false; }
@@ -35,33 +37,58 @@
       showError('Supabase Functions URL unreachable. Check the URL and network.');
       return false;
     }
-  };
+  }
+  window.verifyConfig = verifyConfig;
 
-  // 2) provide a safe "get everything" that the UI can call
-  window.apiGetAll = async function apiGetAll(){
+  // ---- Load all keys (list -> get each) ----
+  async function apiGetAll(){
     const anon = getAnon();
     if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
     const base = getFnsUrl();
 
-    // list keys
     const listRes = await fetch(`${base}/cms-list?like=%25`, {
       headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
     });
     if (!listRes.ok) throw new Error(`LIST failed: ${listRes.status}`);
     const { keys = [] } = await listRes.json();
 
-    // fetch each key’s value
     const pairs = await Promise.all(keys.map(async k => {
       const r = await fetch(`${base}/cms-get?key=${encodeURIComponent(k)}`, {
         headers:{ 'Authorization': `Bearer ${anon}`, 'apikey': anon }
       });
-      if (!r.ok) return [k, '']; // tolerate misses
+      if (!r.ok) return [k, ''];
       const j = await r.json().catch(()=>({}));
       return [k, (j && typeof j.value !== 'undefined') ? j.value : ''];
     }));
 
     return Object.fromEntries(pairs);
-  };
+  }
+  window.apiGetAll = apiGetAll;
+
+  // ---- Delete override (points to your Supabase Function) ----
+  (function ensureApiDel(){
+    const FNS = getFnsUrl();
+    window.CMS_CONFIG ??= {};
+    window.CMS_CONFIG.api ??= {};
+    window.CMS_CONFIG.api.del = `${FNS}/cms-del`;
+  })();
+
+  async function apiDelete(key){
+    if(!key) return;
+    const anon = getAnon();
+    if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
+
+    const url = `${getFnsUrl()}/cms-del?key=${encodeURIComponent(String(key).trim().replace(/\/$/, ''))}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: { 'apikey': anon, 'Authorization': `Bearer ${anon}`, 'x-client-info': 'cms-ui' }
+    });
+    if (!(res.ok || res.status === 204)) {
+      const text = await res.text().catch(()=> '');
+      throw new Error(`cms-del failed ${res.status}: ${text}`);
+    }
+  }
+  window.apiDelete = apiDelete;
 </script>
   <script>
   // Safe one-time initializers (won't redeclare)
