@@ -109,9 +109,22 @@ async function upsertItemFromCms(category: string, suffix: string, isDrink: bool
   const price  = Math.round(parseFloat(lookup[priceKey] || '0') * 100); // pence
   const desc   = lookup[descKey]  || '';
 
-  // Square object IDs we keep stable using deterministic temp IDs (#item-<category>-<suffix>[.drink])
-  const tmpId = `#item-${category}-${suffix}${isDrink ? '-drink' : ''}`;
+  const { data: existing } = await db.from('cms_square_map').select('square_object_id')
+    .eq('cms_kind', 'item')
+    .eq('cms_category', category)
+    .eq('cms_suffix', suffix)
+    .eq('drink', isDrink)
+    .maybeSingle();
+  const existingId = existing?.square_object_id;
+
+  // Use existing Square object ID when present; otherwise create a deterministic temp ID
+  const tmpId = existingId ?? `#item-${category}-${suffix}${isDrink ? '-drink' : ''}`;
   const idempotency = `item-${category}-${suffix}${isDrink ? '-drink' : ''}-${crypto.randomUUID()}`;
+  let variationId = `${tmpId}-var`;
+  if (existingId) {
+    const full = await retrieveObject(env(), existingId).catch(() => null);
+    variationId = full?.object?.item_data?.variations?.[0]?.id ?? variationId;
+  }
 
   const modifiersToAttach: string[] = [];
   if ((lookup[syrupOn]||'').toString().toLowerCase() === 'true') {
@@ -136,7 +149,7 @@ async function upsertItemFromCms(category: string, suffix: string, isDrink: bool
         modifier_list_info: modifiersToAttach.map(id => ({ modifier_list_id: id })),
         variations: [{
           type: 'ITEM_VARIATION',
-          id: `${tmpId}-var`,
+          id: variationId,
           item_variation_data: {
             name: 'Default',
             pricing_type: 'FIXED_PRICING',
