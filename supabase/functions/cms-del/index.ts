@@ -32,6 +32,15 @@ serve(async (req) => {
         .select("key", { count: "exact" });
       if (!error) deleted += count ?? 0;
     }
+    const posBase = Deno.env.get("PROJECT_REF")
+      ? `https://${Deno.env.get("PROJECT_REF")}.functions.supabase.co`
+      : "https://eamewialuovzguldcdcf.functions.supabase.co";
+    await fetch(`${posBase}/pos-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cms-delete", key }),
+    }).catch(() => {});
+
     return json({ ok: true, key, deleted });
   } catch (e) {
     return json({ error: String(e) }, { status: 500 });
