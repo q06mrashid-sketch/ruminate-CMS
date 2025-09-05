@@ -64,7 +64,7 @@ async function upsertSyrupModifier(suffix: string, label: string, pricePence = 5
 
   // Attach to list (Square auto-attaches modifiers to a list by passing "modifier_list_id" in modifier_data, but older API needed separate step; for safety we store mapping only)
   await db.from('cms_square_map').upsert({
-    cms_kind:'syrup', cms_suffix:suffix, cms_category:null, drink:null,
+    cms_kind:'syrup', cms_suffix:suffix, cms_category:'', drink:false,
     square_object_id: squareId, square_object_type:'MODIFIER'
   }, { onConflict: 'cms_kind,cms_category,cms_suffix,drink' });
 
@@ -88,7 +88,7 @@ async function upsertCoffeeBlendModifier(suffix: string, label: string) {
   const res = await upsertCatalogObject(env(), obj);
   const squareId = res?.catalog_object?.id;
   await db.from('cms_square_map').upsert({
-    cms_kind:'coffee_blend', cms_suffix:suffix, cms_category:null, drink:null,
+    cms_kind:'coffee_blend', cms_suffix:suffix, cms_category:'', drink:false,
     square_object_id: squareId, square_object_type:'MODIFIER'
   }, { onConflict: 'cms_kind,cms_category,cms_suffix,drink' });
   return { listId, squareId };
