@@ -31,6 +31,7 @@ serve(async (req) => {
         break;
       }
     }
+    console.log("cms-list like=", like, "keys=", keys.length);
     return json({ count: keys.length, keys });
   } catch (e) {
     return json({ error: String(e) }, { status: 500 });

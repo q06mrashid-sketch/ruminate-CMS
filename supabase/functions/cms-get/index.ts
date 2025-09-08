@@ -37,6 +37,7 @@ serve(async (req) => {
         if (value !== undefined) break;
       }
     }
+    console.log("cms-get key=", key, "hit=", !!value);
     return json({ key, value: value ?? null });
   } catch (e) {
     return json({ error: String(e) }, { status: 500 });

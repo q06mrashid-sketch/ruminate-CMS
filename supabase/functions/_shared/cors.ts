@@ -22,13 +22,25 @@ function pickAllowOrigin(req: Request): string {
 
 export function corsHeaders(req?: Request) {
   const allowOrigin = req ? pickAllowOrigin(req) : (ALLOWED_LIST[0] || defaultOrigin);
+  const allowHeaders = [
+    // headers we rely on for auth + standard request metadata
+    "authorization",
+    "apikey",
+    "content-type",
+    "x-requested-with",
+    "x-client-info",
+  ];
+  // Allow (but don't require) the optional write secret header
+  const cmsSecret =
+    Deno.env.get("CMS_SECRET") ?? Deno.env.get("CMS_WRITE_SECRET");
+  if (cmsSecret) allowHeaders.push("x-cms-secret");
+
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Vary": "Origin",
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":
-      // IMPORTANT: include x-cms-secret + headers you already use
-      "authorization, apikey, content-type, x-requested-with, x-client-info, x-cms-secret",
+    // IMPORTANT: headers that mobile clients (RN fetch) may send
+    "Access-Control-Allow-Headers": allowHeaders.join(", "),
     "Access-Control-Max-Age": "86400",
   } as const;
 }
