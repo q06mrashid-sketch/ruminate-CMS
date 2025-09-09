@@ -1,5 +1,4 @@
 // supabase/functions/cms-del/index.ts
-//deplpoy ping
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { preflight, json } from "../_shared/cors.ts";
@@ -11,6 +10,19 @@ const SERVICE_KEY =
   Deno.env.get("SB_SERVICE_ROLE_KEY");
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY);
+
+// Internal auth for calling other edge functions in this project
+const INTERNAL_TOKEN =
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+  Deno.env.get("SERVICE_ROLE_KEY") ??
+  Deno.env.get("SB_SERVICE_ROLE_KEY") ??
+  Deno.env.get("SUPABASE_ANON_KEY")!;
+
+const INTERNAL_HEADERS = {
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${INTERNAL_TOKEN}`,
+  "apikey": INTERNAL_TOKEN,
+} as const;
 
 serve(async (req) => {
   const pf = preflight(req);
@@ -26,34 +38,32 @@ serve(async (req) => {
 
   try {
     let deleted = 0;
-    const tables = ["cms_texts", "cms_kv", "cms"];
     const debug: Array<{ table: string; removed: number }> = [];
 
-    for (const table of tables) {
-      // SELECT forces returning so we can count reliably
+    for (const table of ["cms_texts", "cms_kv", "cms"]) {
       const { error, data } = await db
         .from(table)
         .delete()
         .eq("key", key)
-        .select("key");
+        .select("key"); // forces returning so we can count
 
-      if (error) continue;                   // table may not exist in this project
+      if (error) continue;
       const removed = Array.isArray(data) ? data.length : 0;
       deleted += removed;
       debug.push({ table, removed });
     }
 
-    // optional POS sync (fire-and-forget)
+    // Notify POS sync with proper auth (best-effort)
     const posBase = Deno.env.get("PROJECT_REF")
       ? `https://${Deno.env.get("PROJECT_REF")}.functions.supabase.co`
       : "https://eamewialuovzguldcdcf.functions.supabase.co";
-    fetch(`${posBase}/pos-sync`, {
+    await fetch(`${posBase}/pos-sync`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: INTERNAL_HEADERS,
       body: JSON.stringify({ action: "cms-delete", key }),
     }).catch(() => {});
 
-    return json({ ok: true, key, deleted, debug, version: "cms-del@count-v2" });
+    return json({ ok: true, key, deleted, debug });
   } catch (e) {
     return json({ error: String(e) }, { status: 500 });
   }
