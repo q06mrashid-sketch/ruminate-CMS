@@ -12,7 +12,12 @@ const SERVICE_KEY =
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// Parse cms key like: menu.coffee.latte.drink / price.coffee.latte.drink
+/** Parse CMS key like:
+ *  menu.coffee.latte.drink
+ *  price.coffee.latte.drink
+ *  desc.coffee.latte.drink
+ *  alt./extra./syrups-on./coffee-on.…
+ */
 function parseKey(key: string) {
   const parts = key.split(".");
   const root = parts[0];
@@ -38,102 +43,120 @@ function parseKey(key: string) {
 serve(async (req) => {
   const pf = preflight(req);
   if (pf) return pf;
-  if (req.method !== "POST") return json({ error: "Method Not Allowed" }, { status: 405 });
+  if (req.method !== "POST") {
+    return json({ error: "Method Not Allowed" }, { status: 405 });
+  }
+
+  // NOTE: We do NOT reject missing Authorization here to make manual curl easier.
+  // Your project may still require a JWT at the platform level; internal calls use service key.
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { action, key, value } = body ?? {};
-    if (!action || !key) return json({ error: "Missing fields" }, { status: 400 });
+    const action = body?.action as string | undefined;
+    const key = (body?.key ?? "").toString();
 
-    const parsed = parseKey(String(key));
-    if (!parsed) return json({ ok: true }); // ignore unrelated keys
+    // Lightweight health-check
+    if (action === "ping") return json({ ok: true, pong: true });
 
-    const env = squareEnvFromEnv();
+    if (!action || !key) {
+      return json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    const parsed = parseKey(key);
+    if (!parsed) {
+      // Ignore unrelated keys silently so CMS can send everything
+      return json({ ok: true, ignored: true, key });
+    }
+
+    const env = squareEnvFromEnv(); // { base, token, version }
 
     if (action === "cms-upsert") {
-      // 1) fetch existing mapping
+      // 1) Check if we already mapped this CMS item to a Square object
       const { data: mapRow } = await db
         .from("pos_map")
         .select("square_id")
         .eq("cms_key", parsed.baseKey)
         .maybeSingle();
-      let squareId: string | undefined = mapRow?.square_id ?? undefined;
 
-      // 2) collect CMS values we care about
-      const nameKey  = parsed.baseKey;
-      const priceKey = `price.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
-      const descKey  = `desc.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      let squareId = mapRow?.square_id as string | undefined;
 
-      const keys = [nameKey, priceKey, descKey];
-      const { data: rows = [] } = await db.from("cms_texts").select("key,value").in("key", keys);
-      const lookup: Record<string, any> = {};
-      for (const r of rows) lookup[r.key] = r.value;
-      if (typeof value !== "undefined") lookup[key] = value; // include current write
+      // 2) Gather latest CMS values
+      const nameKey   = parsed.baseKey;
+      const priceKey  = `price.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      const descKey   = `desc.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      const altKey    = `alt.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      const extraKey  = `extra.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      const syrKey    = `syrups-on.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
+      const coffeeKey = `coffee-on.${parsed.category}.${parsed.suffix}${parsed.drink ? ".drink" : ""}`;
 
-      const name = String(lookup[nameKey] ?? parsed.suffix);
-      const priceStr = String(lookup[priceKey] ?? "");
-      const desc = String(lookup[descKey] ?? "");
+      const keys = [nameKey, priceKey, descKey, altKey, extraKey, syrKey, coffeeKey];
+      const { data: rows } = await db.from("cms_texts").select("key,value").in("key", keys);
+      const lookup: Record<string, unknown> = {};
+      for (const r of rows || []) lookup[r.key] = r.value;
+      // include the value we were just notified about
+      if (typeof body?.value !== "undefined") lookup[key] = body.value;
 
-      // normalise price → pennies
-      const numeric = parseFloat(priceStr.replace(/[^\d.]/g, ""));
-      const amount = Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
-      const pricingType = amount > 0 ? "FIXED_PRICING" : "VARIABLE_PRICING";
+      const name  = String(lookup[nameKey] ?? parsed.suffix);
+      const p     = Number.parseFloat(String(lookup[priceKey] ?? "0"));
+      const price = Number.isFinite(p) ? Math.round(p * 100) : 0;
+      const desc  = String(lookup[descKey] ?? "");
 
-      // 3) determine IDs (temp IDs when creating)
-      const tmpItemId = `#${parsed.category}-${parsed.suffix}${parsed.drink ? "-drink" : ""}`;
-      let itemIdForPayload = squareId || tmpItemId;
+      // Pack feature flags into metadata
+      const metadata: Record<string, string> = {};
+      if (lookup[altKey] !== undefined)    metadata.alt = String(lookup[altKey]);
+      if (lookup[extraKey] !== undefined)  metadata.extra = String(lookup[extraKey]);
+      if (lookup[syrKey] !== undefined)    metadata["syrups-on"] = String(lookup[syrKey]);
+      if (lookup[coffeeKey] !== undefined) metadata["coffee-on"] = String(lookup[coffeeKey]);
 
-      let variationId = `${tmpItemId}-var`;
+      // 3) Prepare Square payload (ITEM + one VARIATION)
+      const tmpId = squareId || `#${parsed.category}-${parsed.suffix}${parsed.drink ? "-drink" : ""}`;
+      let variationId = `${tmpId}-var`;
+
       if (squareId) {
-        // try to read the existing variation id to avoid creating duplicates
+        // Try to reuse existing variation id if object already exists
         const existing = await sqFetch(env, `/v2/catalog/object/${squareId}`).catch(() => null);
-        variationId = existing?.object?.item_data?.variations?.[0]?.id || variationId;
-        itemIdForPayload = squareId;
+        const varId = existing?.object?.item_data?.variations?.[0]?.id;
+        if (varId) variationId = varId;
       }
 
-      // 4) build correct CatalogUpsert payload
-      const catalogObject: any = {
-        type: "ITEM",
-        id: itemIdForPayload,
-        present_at_all_locations: true,
-        item_data: {
-          name,
-          description: desc,
-          product_type: "REGULAR",
-          variations: [
-            {
-              type: "ITEM_VARIATION",
-              id: variationId,
-              present_at_all_locations: true,
-              item_variation_data: {
-                item_id: itemIdForPayload,   // link var → parent
-                name: "Default",
-                pricing_type: pricingType,
-                ...(pricingType === "FIXED_PRICING"
-                  ? { price_money: { amount, currency: "GBP" } }
-                  : {}),
+      const bodyOut = {
+        idempotency_key: `cms-${parsed.category}-${parsed.suffix}-${crypto.randomUUID()}`,
+        object: {
+          type: "ITEM",
+          id: squareId || tmpId,
+          present_at_all_locations: true,
+          item_data: {
+            name,
+            description: desc,
+            metadata,
+            variations: [
+              {
+                type: "ITEM_VARIATION",
+                id: variationId,
+                item_variation_data: {
+                  item_id: squareId || tmpId,
+                  name: "Default",
+                  pricing_type: "FIXED_PRICING",
+                  price_money: { amount: price, currency: "GBP" },
+                },
               },
-            },
-          ],
+            ],
+          },
         },
       };
 
-      const upsertBody = {
-        idempotency_key: `cms-${parsed.category}-${parsed.suffix}-${parsed.drink ? "drink" : "food"}`,
-        object: catalogObject,
-      };
-
-      const res = await sqFetch(env, "/v2/catalog/upsert", {
+      const res = await sqFetch(env, "/v2/catalog/object", {
         method: "POST",
-        body: JSON.stringify(upsertBody),
+        body: JSON.stringify(bodyOut),
       });
 
       squareId = res?.catalog_object?.id || squareId;
-
-      if (squareId) {
-        await db.from("pos_map").upsert({ cms_key: parsed.baseKey, square_id: squareId });
+      if (!squareId) {
+        return json({ error: "Square upsert returned no id", debug: res }, { status: 502 });
       }
-      return json({ ok: true, squareId, pricingType, amount });
+
+      await db.from("pos_map").upsert({ cms_key: parsed.baseKey, square_id: squareId });
+      return json({ ok: true, squareId, synced: parsed.baseKey });
     }
 
     if (action === "cms-delete") {
@@ -142,18 +165,18 @@ serve(async (req) => {
         .select("square_id")
         .eq("cms_key", parsed.baseKey)
         .maybeSingle();
+
       const squareId = mapRow?.square_id as string | undefined;
       if (squareId) {
         await sqFetch(env, `/v2/catalog/object/${squareId}`, { method: "DELETE" }).catch(() => {});
         await db.from("pos_map").delete().eq("cms_key", parsed.baseKey);
       }
-      return json({ ok: true, deleted: !!squareId });
+      return json({ ok: true, removed: parsed.baseKey, squareId: squareId ?? null });
     }
 
-    // ignore other actions
-    return json({ ok: true });
+    // Ignore unknown actions gracefully
+    return json({ ok: true, ignoredAction: action });
   } catch (e) {
-    // surface Square errors clearly
     return json({ error: String(e) }, { status: 500 });
   }
 });
