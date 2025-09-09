@@ -47,7 +47,7 @@ serve(async (req) => {
     const posBase = Deno.env.get("PROJECT_REF")
       ? `https://${Deno.env.get("PROJECT_REF")}.functions.supabase.co`
       : "https://eamewialuovzguldcdcf.functions.supabase.co";
-    await fetch(`${posBase}/pos-sync`, {
+    fetch(`${posBase}/pos-sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "cms-upsert", key, value }),
