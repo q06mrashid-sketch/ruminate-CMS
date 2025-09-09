@@ -1,4 +1,5 @@
 // supabase/functions/cms-del/index.ts
+//deplpoy ping
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { preflight, json } from "../_shared/cors.ts";
