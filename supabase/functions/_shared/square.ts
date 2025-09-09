@@ -6,6 +6,19 @@ export type SquareEnv = {
   version?: string;
 };
 
+export function squareEnvFromEnv(): SquareEnv {
+  const env = (Deno.env.get('SQUARE_ENV') || 'sandbox').toLowerCase();
+  const base = env === 'production'
+    ? 'https://connect.squareup.com'
+    : 'https://connect.squareupsandbox.com';
+  const token = Deno.env.get('SQUARE_ACCESS_TOKEN')!;
+  return { base, token };
+}
+
+export async function callSquare(path: string, init: RequestInit = {}) {
+  return sqFetch(squareEnvFromEnv(), path, init);
+}
+
 export function sqHeaders(env: SquareEnv): HeadersInit {
   return {
     'Authorization': `Bearer ${env.token}`,
