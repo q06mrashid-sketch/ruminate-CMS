@@ -1,0 +1,19 @@
+name: Deploy Supabase Functions
+on:
+  push:
+    paths:
+      - "supabase/functions/**"
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase link --project-ref eamewialuovzguldcdcf
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - run: supabase functions deploy cms-get cms-set cms-list cms-del
