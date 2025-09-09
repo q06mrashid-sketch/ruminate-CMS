@@ -111,8 +111,10 @@ serve(async (req) => {
         }
       };
 
-      const path = squareId ? '/v2/catalog/update' : '/v2/catalog/object';
-      const res = await sqFetch(env, path, { method:'POST', body: JSON.stringify(body) });
+      const res = await sqFetch(env, '/v2/catalog/object', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
       squareId = res?.catalog_object?.id || squareId;
 
       await db.from('pos_map').upsert({ cms_key: parsed.baseKey, square_id: squareId! });
