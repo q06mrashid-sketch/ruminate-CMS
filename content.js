@@ -1,12 +1,23 @@
     // ---- Config (can override via localStorage) ----
-    const GLOBALS = globalThis.CMS_CONFIG ?? {};
-    const config = globalThis.CONFIG || {};
+    const CHECKOUT_FALLBACK = { web: '/checkout' };
+    globalThis.CONFIG ??= {};
+    globalThis.CONFIG.checkoutUrls ??= CHECKOUT_FALLBACK;
+    globalThis.CMS_CONFIG ??= {};
+    globalThis.CMS_CONFIG.checkoutUrls ??=
+      globalThis.CONFIG.checkoutUrls ?? CHECKOUT_FALLBACK;
+
+    const GLOBALS = globalThis.CMS_CONFIG;
+    const config = globalThis.CONFIG;
     const DEFAULT_FUNCTIONS_URL = config.DEFAULT_FUNCTIONS_URL || GLOBALS.api?.baseUrl || 'https://eamewialuovzguldcdcf.functions.supabase.co';
     const VIEW_PASSWORD = "Misterbignose12!";
 
-    const checkoutUrls = GLOBALS.checkoutUrls ?? { web: "/checkout" };
+    const checkoutUrls =
+      GLOBALS.checkoutUrls ?? config.checkoutUrls ?? CHECKOUT_FALLBACK;
     globalThis.checkoutUrls = checkoutUrls;
-    const canDelete = !!GLOBALS.api?.del;
+    const hasConfiguredDelete = typeof GLOBALS.api?.del === 'function'
+      || (typeof GLOBALS.api?.del === 'string' && GLOBALS.api.del)
+      || (typeof GLOBALS.api?.delUrl === 'string' && GLOBALS.api.delUrl);
+    const canDelete = !!(hasConfiguredDelete || getFnsUrl());
 
     function getFnsUrl(){ return localStorage.getItem('cmsFunctionsUrl') || DEFAULT_FUNCTIONS_URL; }
     function setFnsUrl(u){ if(u) localStorage.setItem('cmsFunctionsUrl', u); }
@@ -102,13 +113,26 @@ async function apiGetAll(){
     }
     async function apiDelete(key){
       showError('');
-      if(!canDelete) return; // endpoint not configured
       const anon = getAnon();
       if(!anon) throw new Error('Supabase Anon key not set (click “Set Supabase anon key”).');
       if(!key) return; // short-circuit
       key = key.trim().replace(/\/$/, '');
+      const apiDel = GLOBALS.api?.del;
+      if (typeof apiDel === 'function') {
+        await apiDel(key);
+        return;
+      }
+
+      let url;
+      if (typeof apiDel === 'string' && apiDel) {
+        url = `${apiDel}?key=${encodeURIComponent(key)}`;
+      } else if (typeof GLOBALS.api?.delUrl === 'string' && GLOBALS.api.delUrl) {
+        url = `${GLOBALS.api.delUrl}?key=${encodeURIComponent(key)}`;
+      } else {
+        url = `${getFnsUrl()}/cms-del?key=${encodeURIComponent(key)}`;
+      }
+
       let res;
-      const url = `${GLOBALS.api.del}?key=${encodeURIComponent(key)}`;
       try {
         res = await fetch(url, {
           method: 'DELETE',
