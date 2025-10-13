@@ -1,17 +1,17 @@
 // _shared/square.ts
 export type SquareEnv = {
-  base: string;   // e.g. https://connect.squareupsandbox.com
+  base: string;   // e.g. https://connect.squareup.com
   token: string;  // SQUARE_ACCESS_TOKEN
   locationId?: string;
   version?: string;
 };
 
 export function squareEnvFromEnv(): SquareEnv {
-  const env = (Deno.env.get('SQUARE_ENV') || 'sandbox').toLowerCase();
+  const env = (Deno.env.get('SQUARE_ENV') || 'production').toLowerCase();
   const base = env === 'production'
     ? 'https://connect.squareup.com'
     : 'https://connect.squareupsandbox.com';
-  const token = Deno.env.get('SQUARE_ACCESS_TOKEN')!;
+  const token = Deno.env.get('SQUARE_ACCESS_TOKEN') || 'EAAAl3rZTymb0OTipgts3mRGlznU4lYxTArnxx9G5Blw6HR7I4yHbuKh-IBBhaEC';
   return { base, token };
 }
 
